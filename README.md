@@ -6,20 +6,21 @@ This project is a comprehensive solution for converting 2D floor plan images int
 
 The following images demonstrate the complete workflow from floor plan input to 3D model output:
 
-### Semantic Segmentation Output
-![Segmentation Map](images\input.png)
-*Colored segmentation map showing detected rooms and structural elements*
-
 ### Original Floor Plan
-![Floor Plan](image2.png)
+![Floor Plan](images/input.png)
 *Input floor plan with labeled offices and rooms*
 
+
+### Semantic Segmentation Output
+![Segmentation Map](images/sema .png)
+*Colored segmentation map showing detected rooms and structural elements*
+
 ### 3D Extruded Model
-![3D Model](image3.png)
+![3D Model](images/model (2).png)
 *Final 3D model with extruded walls and room structure*
 
 ### Overlay Visualization
-![Segmentation Overlay](image4.png)
+![Segmentation Overlay](images/split .png)
 *Floor plan with color-coded segmentation overlay showing pipeline processing*
 
 ## Project Structure
