@@ -1,7 +1,9 @@
 import os
+from typing import Optional, Tuple, List
+
 import numpy as np
 import torch
-import torch.utils.data
+from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as T
 import albumentations as A
@@ -19,17 +21,17 @@ NORM_STD = [0.229, 0.224, 0.225]
 # Dataset Definition
 # =================================================
 
-class SplitFloorDataset(torch.utils.data.Dataset):
-    def __init__(self, images_dir, masks_dir, transforms=None):
+class SplitFloorDataset(Dataset):
+    def __init__(self, images_dir: str, masks_dir: str, transforms: Optional[A.Compose] = None):
         self.images = sorted([os.path.join(images_dir, f) for f in os.listdir(images_dir) if f.endswith(".png")])
         self.masks = sorted([os.path.join(masks_dir, f) for f in os.listdir(masks_dir) if f.endswith(".png")])
         assert len(self.images) == len(self.masks), "Images and masks count mismatch"
         self.transforms = transforms
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.images)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         # Image.open is mandatory for Albumentations to work
         image = np.array(Image.open(self.images[idx]).convert("RGB"))
         mask = np.array(Image.open(self.masks[idx]))
@@ -49,7 +51,7 @@ class SplitFloorDataset(torch.utils.data.Dataset):
 # Transform Functions
 # =================================================
 
-def get_train_transforms():
+def get_train_transforms() -> A.Compose:
     """Returns training augmentation pipeline."""
     return A.Compose([
         A.Resize(512, 512), # Ensure input size matches your ResNet/U-Net
@@ -61,7 +63,7 @@ def get_train_transforms():
         ToTensorV2(),
     ])
 
-def get_val_transforms():
+def get_val_transforms() -> A.Compose:
     """Returns validation transform pipeline (only resizing and normalization)."""
     return A.Compose([
         A.Resize(512, 512),
@@ -73,7 +75,7 @@ def get_val_transforms():
 # Image Preprocessing for Inference
 # =================================================
 
-def preprocess_image(image_path):
+def preprocess_image(image_path: str) -> Tuple[torch.Tensor, Tuple[int, int]]:
     """
     Preprocess a single image for inference.
     Returns: (tensor, original_size)
@@ -94,7 +96,7 @@ def preprocess_image(image_path):
 # Size Restoration Utility
 # =================================================
 
-def restore_size(mask, orig_size):
+def restore_size(mask: np.ndarray, orig_size: Tuple[int, int]) -> np.ndarray:
     """Restore mask to original image size."""
     orig_h, orig_w = orig_size
     mask_img = Image.fromarray(mask.astype(np.uint8))

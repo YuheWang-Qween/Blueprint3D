@@ -440,7 +440,7 @@ def train_model(
                 'val_loss': val_loss,
                 'val_iou': val_iou
             }, checkpoint_path)
-            print(f"\n✓ Saved best model (val_loss: {val_loss:.4f})")
+            print(f"\n[INFO] Saved best model (val_loss: {val_loss:.4f})")
         
         # Save checkpoint every 10 epochs
         if epoch % 10 == 0:
@@ -452,7 +452,7 @@ def train_model(
                 'val_loss': val_loss,
                 'val_iou': val_iou
             }, checkpoint_path)
-            print(f"✓ Saved checkpoint at epoch {epoch}")
+            print(f"[INFO] Saved checkpoint at epoch {epoch}")
         
         # Plot training curves
         if epoch % 5 == 0 or epoch == 1:
@@ -517,7 +517,7 @@ def plot_training_curves(history, save_dir):
     plt.savefig(plot_path, dpi=150, bbox_inches='tight')
     plt.close()
     
-    print(f"✓ Training curves saved to {plot_path}")
+    print(f"[INFO] Training curves saved to {plot_path}")
 
 
 # ==================== MAIN ====================

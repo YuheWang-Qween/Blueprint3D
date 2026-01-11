@@ -2,14 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
-import gc
 
-class SplitFloor(torch.nn.Module):
+class SplitFloor(nn.Module):
     """
     U-Net-like architecture with a ResNet-50 encoder.
     Uses concatenation for skip connections and bilinear upsampling for stability.
     """
-    def __init__(self, num_classes=4, pretrained=True, freeze=True):
+    def __init__(self, num_classes: int = 4, pretrained: bool = True, freeze: bool = True):
         super(SplitFloor, self).__init__()
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -49,7 +48,14 @@ class SplitFloor(torch.nn.Module):
         # 3. Final Output Head
         self.output_conv = nn.Conv2d(dec_channels[-1], num_classes, kernel_size=1)
         
-    def _conv_block(self, in_channels, out_channels, kernel_size, stride=1, padding=0):
+    def _conv_block(
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        kernel_size: int, 
+        stride: int = 1, 
+        padding: int = 0
+    ) -> nn.Sequential:
         # Determine padding for non-1x1 kernels
         if kernel_size > 1:
             padding = kernel_size // 2
@@ -60,11 +66,11 @@ class SplitFloor(torch.nn.Module):
         
         return nn.Sequential(conv2d, nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True))
 
-    def _refinement_block(self, in_channels, out_channels):
+    def _refinement_block(self, in_channels: int, out_channels: int) -> nn.Sequential:
         """Standard convolution block used after concatenation (typically 3x3)."""
         return self._conv_block(in_channels, out_channels, kernel_size=3)
 
-    def _initialize_resnet_encoder(self, pretrained, freeze):
+    def _initialize_resnet_encoder(self, pretrained: bool, freeze: bool):
         encmodel = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None)
         
         if freeze:
@@ -81,7 +87,7 @@ class SplitFloor(torch.nn.Module):
             encmodel.layer4  # F5 (C=2048, H/32) - Deepest feature/Decoder start
         ])
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         input_h, input_w = x.shape[2:]
         
         # --- Encoder Pass ---

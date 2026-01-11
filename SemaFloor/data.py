@@ -1,21 +1,22 @@
 """
-RoomDataset: Binary segmentation dataset for architectural floor plans
+RoomDataset: Binary segmentation dataset for architectural floor plans.
 
 Features:
 - Binary room masks (room=1, background=0)
 - Optional boundary mask generation for wall detection
 - Floor-plan-appropriate augmentation (rotations, flips)
-- No ImageNet normalization
 """
 
 import os
+import random
+from typing import Optional, Tuple, Dict, List
+
+import cv2
 import numpy as np
-from PIL import Image
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms.functional as TF
-import random
-import cv2
+from PIL import Image
 
 
 class RoomDataset(Dataset):
@@ -23,22 +24,21 @@ class RoomDataset(Dataset):
     Dataset for floor plan room segmentation
     
     Expected structure:
-        root_dir/train/
-            image1.png
-            image1_rooms.png
-            image2.png
-            image2_rooms.png
-        root_dir/test/
-            ...
+        root_dir/
+            train/
+                image1.png
+                image1_rooms.png
+            test/
+                ...
     """
     
     def __init__(
         self, 
-        root_dir, 
-        split="train", 
-        img_size=512, 
-        augment=True,
-        generate_boundaries=True
+        root_dir: str, 
+        split: str = "train", 
+        img_size: int = 512, 
+        augment: bool = True,
+        generate_boundaries: bool = True
     ):
         """
         Args:
@@ -69,10 +69,10 @@ class RoomDataset(Dataset):
         
         print(f"[{split.upper()}] Loaded {len(self.files)} image-mask pairs")
     
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.files)
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         img_path, mask_path = self.files[idx]
         
         # ==================== LOAD IMAGE & MASK ====================
@@ -120,9 +120,9 @@ class RoomDataset(Dataset):
         
         return output
     
-    def _extract_boundaries(self, room_mask):
+    def _extract_boundaries(self, room_mask: np.ndarray) -> np.ndarray:
         """
-        Extract wall boundaries from room mask using morphological operations
+        Extract wall boundaries from room mask using morphological operations.
         
         Args:
             room_mask: Binary mask (H, W) with room=1, background=0
@@ -142,9 +142,14 @@ class RoomDataset(Dataset):
         
         return boundary_mask
     
-    def _augment(self, img, room_mask, boundary_mask=None):
+    def _augment(
+        self, 
+        img: Image.Image, 
+        room_mask: np.ndarray, 
+        boundary_mask: Optional[np.ndarray] = None
+    ) -> Tuple[Image.Image, np.ndarray, Optional[np.ndarray]]:
         """
-        Apply floor-plan-appropriate augmentations
+        Apply floor-plan-appropriate augmentations.
         
         Args:
             img: PIL Image

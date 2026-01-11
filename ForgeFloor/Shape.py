@@ -118,7 +118,7 @@ class ShapeProcessor:
             result['files']['overlay_png'] = overlay_path
             result['success'] = True
             
-            print(f"✅ Shape processing complete: {n_rooms} rooms detected")
+            print(f"[INFO] Shape processing complete: {n_rooms} rooms detected")
             
         except Exception as e:
             result['errors'].append(f"Shape processing error: {e}")
@@ -274,7 +274,7 @@ class ShapeProcessor:
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close(fig)
         
-        print(f"✅ Saved visualization: {os.path.basename(output_path)}")
+        print(f"[INFO] Saved visualization: {os.path.basename(output_path)}")
 
 
 # Standalone execution for testing
@@ -298,6 +298,6 @@ if __name__ == "__main__":
         for name, path in result['files'].items():
             print(f"  {name}: {path}")
     else:
-        print("Shape processing failed:")
+        print("[ERROR] Shape processing failed:")
         for error in result['errors']:
-            print(f"  • {error}")
+            print(f"  - {error}")

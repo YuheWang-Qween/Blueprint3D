@@ -34,7 +34,7 @@ COLOR_MAP = {
 
 def save_raw_mask(pred_mask, save_path):
     Image.fromarray(pred_mask.astype(np.uint8)).save(save_path)
-    print(f"Saved raw mask → {save_path}")
+    print(f"Saved raw mask -> {save_path}")
 
 # =================================================
 # Create & save colorized mask
@@ -48,7 +48,7 @@ def save_color_mask(pred_mask, save_path):
         color_img[pred_mask == cls] = color
 
     Image.fromarray(color_img).save(save_path)
-    print(f"Saved colored mask → {save_path}")
+    print(f"Saved colored mask -> {save_path}")
 
 # =================================================
 # Save CSV containing only class indices (0-3)
@@ -60,7 +60,7 @@ def save_csv(pred_mask, save_path):
     pred_mask[pred_mask >= NUM_CLASSES] = 0  # safety check
     # Save without index or header
     pd.DataFrame(pred_mask).to_csv(save_path, index=False, header=False)
-    print(f"Saved CSV → {save_path}")
+    print(f"Saved CSV -> {save_path}")
 
 # =================================================
 # Inference
@@ -88,7 +88,7 @@ def infer(image_path):
     save_color_mask(pred, OUTPUT_MASK_COLOR)
     save_csv(pred, OUTPUT_CSV)
 
-    print("\n✓ Inference complete.")
+    print("\n[INFO] Inference complete.")
     print(f"Files generated:\n - {OUTPUT_MASK_RAW}\n - {OUTPUT_MASK_COLOR}\n - {OUTPUT_CSV}")
 
 # =================================================

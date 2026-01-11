@@ -161,7 +161,7 @@ class SemafloorNet(nn.Module):
         self.enc1 = resnet.layer1  # 64 channels, 1/2 resolution
         self.enc2 = resnet.layer2  # 256 channels, 1/4 resolution  
         self.enc3 = resnet.layer3  # 512 channels, 1/8 resolution
-        self.enc4 = resnet.layer4  # 1024 channels, 1/16 resolution -> CORRECTED: ResNet50 has 2048 channels
+        self.enc4 = resnet.layer4  # 2048 channels, 1/16 resolution
         
         # ==================== ASPP (Bottleneck) ====================
         self.aspp = ASPP(2048, 512)

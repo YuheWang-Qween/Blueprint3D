@@ -132,13 +132,13 @@ class SemafloorPredictor:
             mask_path = os.path.join(output_dir, f"{base_name}_predicted_mask.png")
             mask_img = Image.fromarray(room_mask_resized * 255)
             mask_img.save(mask_path)
-            print(f"✓ Saved mask: {mask_path}")
+            print(f"[INFO] Saved mask: {mask_path}")
         
         # Save overlay
         if save_overlay:
             overlay_path = os.path.join(output_dir, f"{base_name}_overlay.png")
             self._save_overlay(img, room_mask_resized, overlay_path)
-            print(f"✓ Saved overlay: {overlay_path}")
+            print(f"[INFO] Saved overlay: {overlay_path}")
         
         # Visualize
         if visualize:
@@ -208,7 +208,7 @@ class SemafloorPredictor:
             
             results.append(result)
         
-        print(f"\n✓ Batch processing complete! Results saved to {output_dir}")
+        print(f"\n[INFO] Batch processing complete! Results saved to {output_dir}")
         return results
     
     def _visualize(self, img, mask):
@@ -279,7 +279,7 @@ class SemafloorPredictor:
             csv_path: Path to save CSV
         """
         np.savetxt(csv_path, mask, fmt='%d', delimiter=',')
-        print(f"✓ Exported mask to CSV: {csv_path}")
+        print(f"[INFO] Exported mask to CSV: {csv_path}")
 
 
 # ==================== DEMO USAGE ====================
@@ -299,7 +299,7 @@ def demo():
     print("="*60)
     
     result = predictor.predict(
-        image_path="demo.jpg",
+        image_path="demo2.jpg",
         threshold=0.5,
         return_boundary=True,
         visualize=True,

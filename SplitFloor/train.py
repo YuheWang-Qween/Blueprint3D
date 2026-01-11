@@ -181,7 +181,7 @@ def validate(model, loader, criterion, device, num_classes):
 def visualize_predictions(model, dataset, device, n=5):
     """Plots original image, ground truth mask, and model prediction."""
     model.eval()
-    print("\n--- Visualizing Predictions ---")
+    print("\n[INFO] Visualizing Predictions...")
     
     # Define inverse transform for visualization
     mean = np.array(NORM_MEAN)
@@ -262,7 +262,7 @@ def main(cfg: CFG):
     os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
     
     # 2. Load Data
-    print("\n--- Loading Data ---")
+    print("\n[INFO] Loading Data...")
     train_dataset = SplitFloorDataset(
         images_dir=os.path.join(cfg.DATASET_ROOT, "train/images"),
         masks_dir=os.path.join(cfg.DATASET_ROOT, "train/masks"),
@@ -282,7 +282,7 @@ def main(cfg: CFG):
     print(f"Train samples: {len(train_dataset)}, Validation samples: {len(val_dataset)}")
 
     # 3. Initialize Model, Loss, Optimizer, and Scheduler
-    print("\n--- Initializing Model and Training components ---")
+    print("\n[INFO] Initializing Model and Training components...")
     model = SplitFloor(num_classes=cfg.NUM_CLASSES, pretrained=cfg.PRETRAINED).to(device) 
     criterion = CombinedLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.LEARNING_RATE)
@@ -298,7 +298,7 @@ def main(cfg: CFG):
     }
     
     # 4. Training Loop
-    print("\n--- Starting Training ---")
+    print("\n[INFO] Starting Training...")
     
     # Enable interactive mode for live plotting
     plt.ion() 
@@ -323,7 +323,7 @@ def main(cfg: CFG):
 
         # Save Best Model Checkpoint based on mIoU
         if val_miou > best_val_miou:
-            print(f"Validation mIoU improved ({best_val_miou:.4f} -> {val_miou:.4f}). Saving model...")
+            print(f"[INFO] Validation mIoU improved ({best_val_miou:.4f} -> {val_miou:.4f}). Saving model...")
             best_val_miou = val_miou
             torch.save(model.state_dict(), cfg.WEIGHTS_PATH)
             
@@ -331,11 +331,11 @@ def main(cfg: CFG):
     plt.ioff()
     
     # 5. Final Visualization
-    print("\n--- Training Finished ---")
+    print("\n[INFO] Training Finished")
     
     if os.path.exists(cfg.WEIGHTS_PATH):
         model.load_state_dict(torch.load(cfg.WEIGHTS_PATH, map_location=device))
-        print(f"Loaded best model from {cfg.WEIGHTS_PATH}")
+        print(f"[INFO] Loaded best model from {cfg.WEIGHTS_PATH}")
     
     visualize_predictions(model, val_dataset, device, n=5)
 
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     try:
         main(CFG)
     except FileNotFoundError as e:
-        print(f"\nFATAL ERROR: A required file or directory was not found. Please check the path: {e}")
-        print("Ensure 'net.py' (containing the SplitFloor class) and the 'splitfloor_dataset' directory structure exist.")
+        print(f"\n[ERROR] A required file or directory was not found. Please check the path: {e}")
+        print("[ERROR] Ensure 'net.py' (containing the SplitFloor class) and the 'splitfloor_dataset' directory structure exist.")
     except Exception as e:
-        print(f"\nAn unexpected error occurred during execution: {e}")
+        print(f"\n[ERROR] An unexpected error occurred during execution: {e}")
