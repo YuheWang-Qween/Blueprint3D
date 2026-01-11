@@ -10,17 +10,16 @@ The following images demonstrate the complete workflow from floor plan input to 
 ![Floor Plan](images/input.png)
 *Input floor plan with labeled offices and rooms*
 
-
 ### Semantic Segmentation Output
-![Segmentation Map](images/sema .png)
+![Segmentation Map](images/sema.png)
 *Colored segmentation map showing detected rooms and structural elements*
 
 ### 3D Extruded Model
-![3D Model](images/model (2).png)
+![3D Model](images/model.png)
 *Final 3D model with extruded walls and room structure*
 
 ### Overlay Visualization
-![Segmentation Overlay](images/split .png)
+![Segmentation Overlay](images/split.png)
 *Floor plan with color-coded segmentation overlay showing pipeline processing*
 
 ## Project Structure
