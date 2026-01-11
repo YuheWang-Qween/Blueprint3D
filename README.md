@@ -2,6 +2,26 @@
 
 This project is a comprehensive solution for converting 2D floor plan images into interactive 3D models. It utilizes deep learning for semantic understanding and morphological image processing for 3D geometry generation.
 
+## Pipeline Visualization
+
+The following images demonstrate the complete workflow from floor plan input to 3D model output:
+
+### Semantic Segmentation Output
+![Segmentation Map](images\input.png)
+*Colored segmentation map showing detected rooms and structural elements*
+
+### Original Floor Plan
+![Floor Plan](image2.png)
+*Input floor plan with labeled offices and rooms*
+
+### 3D Extruded Model
+![3D Model](image3.png)
+*Final 3D model with extruded walls and room structure*
+
+### Overlay Visualization
+![Segmentation Overlay](image4.png)
+*Floor plan with color-coded segmentation overlay showing pipeline processing*
+
 ## Project Structure
 
 The project is organized into three main modules:
