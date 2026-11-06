@@ -1,0 +1,12 @@
+[project]
+sub_id = "94c94b40"
+name = "floorplan-3d-pipeline"
+requires = ["python-3.12"]
+project_type = ""
+version = "0.1.9"
+
+[preview]
+preview_enable = "disabled"
+
+[subprojects]
+path = ["."]
