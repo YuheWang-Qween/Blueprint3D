@@ -26,7 +26,9 @@ bash scripts/start_web.sh
 扣子工作区需要同步包含网页版的 `main` 提交。`.coze` 已声明 `project_type = "web"`，
 预览的 `dev.run` 通过 `dev_web.sh` 顺序安装依赖并启动（不能依赖 `dev.build` 自动安装）。
 生产环境分别执行安装、启动脚本。安装脚本兼容扣子生产构建提供的
-`PIP_TARGET`，本地则使用 `.venv`。启动后应先确认预览可见登录页，再在部署面板发布。
+`PIP_TARGET`，本地则使用 `.venv`。缺少 ensurepip / venv 的精简云端环境自动安装到
+项目内 `.web-deps`，启动脚本设置相应模块路径，无需 apt 或改动系统 Python。
+启动后应先确认预览可见登录页并实际生成一个模型，再在部署面板发布。
 GitHub 推送完成不等于扣子工作区或线上服务已经自动更新。
 
 预览嵌在跨站 iframe 时，浏览器可能限制会话 Cookie。可以在新标签页打开预览；

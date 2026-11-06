@@ -5,10 +5,8 @@ import sys
 import traceback
 from pathlib import Path
 
-from .geometry import ROOT, reconstruct, write_model
-
-
 def neural(directory, params):
+    from .geometry import ROOT, write_model
     import numpy as np
     import pyvista as pv
     import trimesh
@@ -58,9 +56,10 @@ def main():
         if options['params']['engine']=='neural':
             neural(directory,options['params'])
         else:
+            from .geometry import reconstruct
             reconstruct(directory/'input.png',directory,options['params'],options.get('plan'))
     except Exception as error:
-        message=str(error) if isinstance(error,ValueError) else '处理未完成，请换一张清晰户型图或联系管理员检查运行环境。'
+        message='服务器缺少建模依赖，请联系管理员检查安装日志。' if isinstance(error,ImportError) else str(error) if isinstance(error,ValueError) else '处理未完成，请换一张清晰户型图或联系管理员检查运行环境。'
         (directory/'error.txt').write_text(message)
         traceback.print_exc()
         sys.exit(1)

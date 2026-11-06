@@ -108,6 +108,7 @@ ForgeFloor/users.json*
 
 # Web runtime data and packaged public fixtures
 var/
+.web-deps/
 .env.*
 !.env.example
 !examples/**/*.csv
