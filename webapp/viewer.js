@@ -34,8 +34,11 @@ export class ModelViewer {
   resize(){
     const w=this.host.clientWidth,h=this.host.clientHeight;
     if(!w||!h)return;
+    const previousAspect=this.camera.aspect;
     this.camera.aspect=w/h;this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w,h,false);this.render();
+    this.renderer.setSize(w,h,false);
+    if(this.span && Math.abs(previousAspect-this.camera.aspect)>.05)this.reset();
+    else this.render();
   }
   render(){this.renderer.render(this.scene,this.camera);}
   async load(url){
@@ -55,6 +58,7 @@ export class ModelViewer {
     this.model.position.x-=center.x;this.model.position.z-=center.z;
     const size=bounds.getSize(new THREE.Vector3());
     this.span=Math.max(size.x,size.z,size.y,2);
+    this.radius=size.length()/2+size.y*.1;
     this.target=new THREE.Vector3(0,size.y*.26,0);
     this.plane.constant=size.y*.5;
     this.cut(false);this.reset();
@@ -62,12 +66,17 @@ export class ModelViewer {
   }
   reset(){
     if(!this.span)return;
-    this.camera.position.set(this.span*.85,this.span*1.13,this.span*1.25);
+    this.camera.position.set(.85,1.13,1.25).normalize().multiplyScalar(this.fitDistance()).add(this.target);
     this.controls.target.copy(this.target);this.controls.update();this.render();
+  }
+  fitDistance(){
+    const vertical=THREE.MathUtils.degToRad(this.camera.fov)/2;
+    const horizontal=Math.atan(Math.tan(vertical)*this.camera.aspect);
+    return this.radius*1.05/Math.sin(Math.min(vertical,horizontal));
   }
   top(){
     if(!this.span)return;
-    this.camera.position.set(0,this.span*1.8,.001);
+    this.camera.position.set(0,this.fitDistance(),.001);
     this.controls.target.set(0,0,0);this.controls.update();this.render();
   }
   cut(enabled){
