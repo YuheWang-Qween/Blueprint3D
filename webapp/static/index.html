@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10243e">
+  <title>Blueprint3D · 户型建模工作台</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <section id="auth-screen" class="auth-screen" aria-label="账户登录">
+    <div class="blueprint-cover">
+      <a class="brand" href="/" aria-label="Blueprint3D 首页"><span class="brand-mark" aria-hidden="true">B<span>3</span></span>Blueprint3D</a>
+      <div class="cover-heading"><h1>从平面图纸<br>到立体空间</h1><p>上传、校正、预览。让每一道墙线都有形状。</p></div>
+      <svg class="cover-plan" viewBox="130 35 900 760" role="img" aria-label="带门洞与隔墙的示例户型蓝图">
+        <g fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round">
+          <path d="M166 530H265V139H730V69H985V547H734V606M734 658V730H166Z M558 139V372 M265 372H489 M552 372H564 M628 372H731 M731 139V374 M734 439H793 M793 439H858 M858 366H985 M858 435V547 M265 531H434 M289 531V730"/>
+          <path d="M265 139L314 191H265L314 139V191 M676 686L734 730H676L734 686Z"/>
+          <path d="M434 378V459M427 443V526" stroke-width="2"/>
+        </g>
+        <g fill="none" stroke="var(--brass)" stroke-width="2"><path d="M489 372A63 63 0 0 1 552 309V372 M564 372V308A64 64 0 0 1 628 372 M731 374A65 65 0 0 1 796 439H731 M858 435A69 69 0 0 0 927 366H858 M734 439H793A59 59 0 0 1 734 498 M734 606H682A52 52 0 0 0 734 658"/></g>
+      </svg>
+      <div class="cover-foot"><span>图纸有依据，空间可检查</span><span>平面 / 立面 / 模型</span></div>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-form-wrap">
+        <span class="mobile-brand">Blueprint3D</span>
+        <h2 id="auth-title">进入制图工作台</h2>
+        <p id="auth-subtitle">登录后保存图纸与模型，随时继续。</p>
+        <form id="auth-form">
+          <label>用户名<input id="username" name="username" autocomplete="username" required minlength="2" maxlength="32" placeholder="输入用户名"></label>
+          <label>密码<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128" placeholder="输入密码"></label>
+          <label id="confirm-label" hidden>确认密码<input id="confirm-password" type="password" autocomplete="new-password" maxlength="128" placeholder="再输入一次密码"></label>
+          <p id="auth-error" class="form-error" role="alert"></p>
+          <button class="primary" id="auth-submit" type="submit">登录工作台</button>
+        </form>
+        <button class="text-button" id="auth-toggle" type="button">还没有账户？创建账户</button>
+        <div class="auth-note"><strong>一张户型图，就能开始</strong><p>支持 PNG、JPG、WebP。提供墙线校正、三维预览和模型下载。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="studio" class="studio" hidden>
+    <header class="topbar">
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">B<span>3</span></span>Blueprint3D</a>
+      <span class="workspace-title">户型建模工作台</span>
+      <div class="account"><span id="account-name"></span><button id="logout" type="button">退出</button></div>
+    </header>
+    <div class="work-layout">
+      <aside class="sidebar">
+        <section class="new-model">
+          <div class="section-heading"><h2>新建模型</h2><span>图纸 → 空间</span></div>
+          <form id="model-form">
+            <label class="upload-zone" id="upload-zone" for="plan-file">
+              <span class="upload-icon" aria-hidden="true">＋</span><strong id="upload-title">选择或拖入户型图</strong><span id="upload-meta">PNG / JPG / WebP，最大 12 MB</span>
+              <input type="file" id="plan-file" accept="image/png,image/jpeg,image/webp">
+            </label>
+            <img id="upload-thumbnail" class="upload-thumbnail" alt="选中的户型图" hidden>
+            <div class="parameters">
+              <label class="wide">户型总宽<span class="input-unit"><input id="width-m" type="number" min="2" max="100" step="0.1" value="10.8" required><span>米</span></span></label>
+              <label>墙高<span class="input-unit"><input id="wall-height" type="number" min="1.8" max="8" step="0.1" value="2.8" required><span>米</span></span></label>
+              <label>门高<span class="input-unit"><input id="door-height" type="number" min="1.5" max="5" step="0.1" value="2.1" required><span>米</span></span></label>
+              <label class="wide">墙厚<span class="input-unit"><input id="wall-thickness" type="number" min="0.06" max="0.6" step="0.01" value="0.16" required><span>米</span></span></label>
+              <label class="wide">建模方式<select id="engine"><option value="linework">线稿建模 · 支持墙线校正</option></select></label>
+            </div>
+            <p class="field-note">没有标注尺寸时，先输入估算值。生成后对照原图核对墙线和门洞。</p>
+            <p id="model-error" class="form-error" role="alert"></p>
+            <button id="generate" class="primary" type="submit" disabled>生成 3D 模型</button>
+          </form>
+          <button id="load-sample" class="sample-button" type="button"><span>先试一张示例户型</span><span aria-hidden="true">↗</span></button>
+        </section>
+        <section class="history-section"><div class="section-heading"><h2>我的模型</h2><span id="history-count">0</span></div><div id="history-list" class="history-list"><p class="empty-history">生成的模型会保存在这里。</p></div></section>
+      </aside>
+      <main class="main-workspace">
+        <div class="drawing-heading"><div><span class="drawing-caption">当前图纸</span><h1 id="drawing-title">示例户型</h1></div><span id="status-badge" class="status-badge">可旋转查看</span></div>
+        <div class="view-toolbar">
+          <div class="view-tabs" role="tablist" aria-label="图纸视图">
+            <button id="tab-model" role="tab" aria-selected="true" aria-controls="model-view" data-view="model">3D 模型</button>
+            <button id="tab-edit" role="tab" aria-selected="false" aria-controls="edit-view" data-view="edit">校正平面</button>
+            <button id="tab-image" role="tab" aria-selected="false" aria-controls="image-view" data-view="image">原始图纸</button>
+          </div>
+          <div class="view-actions" id="view-actions"><button id="view-top" type="button">俯视</button><button id="view-reset" type="button">复位视角</button><label class="check-label"><input id="cutaway" type="checkbox">半墙查看</label></div>
+        </div>
+        <section id="model-view" class="view-panel" role="tabpanel" aria-labelledby="tab-model">
+          <div id="viewer" class="viewer"></div>
+          <div class="canvas-help">拖动旋转 · 滚轮缩放 · 右键平移</div>
+          <div id="viewer-error" class="viewer-message" role="alert" hidden></div>
+        </section>
+        <section id="edit-view" class="view-panel edit-panel" role="tabpanel" aria-labelledby="tab-edit" hidden>
+          <div id="edit-empty" class="edit-empty">生成线稿模型后，可在这里补墙、标门洞。</div>
+          <div id="editor-tools" class="editor-tools" hidden><div class="tool-group" role="group" aria-label="校正工具"><button data-tool="wall" aria-pressed="true">画墙线</button><button data-tool="door" aria-pressed="false">标门洞</button><button data-tool="erase" aria-pressed="false">擦除</button><button id="undo-edit">撤销</button></div><button id="save-edit" class="primary" disabled>更新 3D 模型</button></div>
+          <div id="editor-stage" class="editor-stage" hidden><canvas id="plan-editor" aria-label="平面校正画布，点击起点和终点可画墙线或门洞"></canvas></div>
+          <div id="edit-hint" class="editor-hint" hidden><span><i class="line-key wall-key"></i>墙线 <i class="line-key door-key"></i>门洞</span><span id="edit-instruction">依次点击起点、终点。墙线自动吸附横竖方向。</span></div>
+        </section>
+        <section id="image-view" class="view-panel source-panel" role="tabpanel" aria-labelledby="tab-image" hidden><img id="source-image" src="/sample/input.png" alt="当前模型的原始户型图"></section>
+        <footer class="drawing-footer"><div><p id="result-note">示例已按原图核对，尺寸为估算值。上传你自己的图纸开始建模。</p><span id="result-meta">墙高 2.8 米 · 6 处平开门 · 1 处推拉隔断</span></div><div id="downloads" class="download-actions" hidden><a id="download-glb" class="secondary" download>下载 GLB</a><a id="download-zip" class="primary" download>下载模型包</a></div></footer>
+        <div id="progress" class="progress-panel" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><div><strong id="progress-title">正在生成模型</strong><p>处理完成后会自动显示结果，可以稍后从“我的模型”继续查看。</p></div></div>
+      </main>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

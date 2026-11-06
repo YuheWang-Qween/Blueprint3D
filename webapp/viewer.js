@@ -1,0 +1,77 @@
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+export class ModelViewer {
+  constructor(host) {
+    this.host=host;
+    this.scene=new THREE.Scene();
+    this.scene.background=new THREE.Color('#e7edf0');
+    this.renderer=new THREE.WebGLRenderer({antialias:true});
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    this.renderer.outputColorSpace=THREE.SRGBColorSpace;
+    this.renderer.localClippingEnabled=true;
+    this.renderer.domElement.setAttribute('aria-label','可拖动旋转、滚轮缩放的三维户型模型');
+    this.renderer.domElement.setAttribute('role','img');
+    host.appendChild(this.renderer.domElement);
+    this.camera=new THREE.PerspectiveCamera(38,1,.01,3000);
+    this.controls=new OrbitControls(this.camera,this.renderer.domElement);
+    this.controls.enableDamping=false;
+    this.controls.maxPolarAngle=Math.PI*.495;
+    this.controls.addEventListener('change',()=>this.render());
+    this.scene.add(new THREE.HemisphereLight('#ffffff','#9caebe',2.5));
+    const light=new THREE.DirectionalLight('#ffffff',3);
+    light.position.set(-10,18,6); this.scene.add(light);
+    const fill=new THREE.DirectionalLight('#c5d8ec',1.2);
+    fill.position.set(8,9,-8); this.scene.add(fill);
+    this.grid=new THREE.GridHelper(80,80,'#bdcbd3','#d2dce2');
+    this.grid.position.y=-.15;this.scene.add(this.grid);
+    this.plane=new THREE.Plane(new THREE.Vector3(0,-1,0),1.4);
+    this.loadId=0;
+    new ResizeObserver(()=>this.resize()).observe(host);
+    this.resize();
+  }
+  resize(){
+    const w=this.host.clientWidth,h=this.host.clientHeight;
+    if(!w||!h)return;
+    this.camera.aspect=w/h;this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w,h,false);this.render();
+  }
+  render(){this.renderer.render(this.scene,this.camera);}
+  async load(url){
+    const id=++this.loadId;
+    const response=await fetch(url,{credentials:'same-origin'});
+    if(!response.ok)throw Error('模型读取失败，请刷新后重试。');
+    const buffer=await response.arrayBuffer();
+    const gltf=await new GLTFLoader().parseAsync(buffer,'');
+    if(id!==this.loadId)return;
+    if(this.model){
+      this.scene.remove(this.model);
+      this.model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){for(const m of [].concat(o.material))m.dispose();}});
+    }
+    this.model=gltf.scene;this.scene.add(this.model);
+    const bounds=new THREE.Box3().setFromObject(this.model);
+    const center=bounds.getCenter(new THREE.Vector3());
+    this.model.position.x-=center.x;this.model.position.z-=center.z;
+    const size=bounds.getSize(new THREE.Vector3());
+    this.span=Math.max(size.x,size.z,size.y,2);
+    this.target=new THREE.Vector3(0,size.y*.26,0);
+    this.plane.constant=size.y*.5;
+    this.cut(false);this.reset();
+    this.host.dataset.ready='true';
+  }
+  reset(){
+    if(!this.span)return;
+    this.camera.position.set(this.span*.85,this.span*1.13,this.span*1.25);
+    this.controls.target.copy(this.target);this.controls.update();this.render();
+  }
+  top(){
+    if(!this.span)return;
+    this.camera.position.set(0,this.span*1.8,.001);
+    this.controls.target.set(0,0,0);this.controls.update();this.render();
+  }
+  cut(enabled){
+    this.model?.traverse(o=>{if(o.material){for(const m of [].concat(o.material)){m.clippingPlanes=enabled?[this.plane]:[];m.needsUpdate=true;}}});
+    this.render();
+  }
+}

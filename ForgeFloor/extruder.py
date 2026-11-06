@@ -478,6 +478,7 @@ def create_gui(project_root='.'):
         import tkinter as tk
         from tkinter import ttk, messagebox, filedialog
         from PIL import Image, ImageTk
+        from auth import LoginWindow
     except ImportError as e:
         print(f"[ERROR] Required libraries not available: {e}")
         print("Install with: pip install pillow")
@@ -1056,9 +1057,20 @@ def create_gui(project_root='.'):
             finally:
                 self.status_label.config(text="Ready")
     
-    # Launch GUI
+    # Launch GUI: login window first, main workspace after authentication
     root = tk.Tk()
-    app = ForgePlanGUI(root)
+
+    def on_login_success(username):
+        for widget in root.winfo_children():
+            widget.destroy()
+        app = ForgePlanGUI(root)
+        app.current_user = username
+        app.root.title(
+            "Forgeplan - 2D to 3D Floor Plan Pipeline"
+            " (Enhanced with Live Preview) | user: " + username
+        )
+
+    LoginWindow(root, on_success=on_login_success)
     root.mainloop()
 
 

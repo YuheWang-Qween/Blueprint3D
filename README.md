@@ -2,6 +2,36 @@
 
 This project is a comprehensive solution for converting 2D floor plan images into interactive 3D models. It utilizes deep learning for semantic understanding and morphological image processing for 3D geometry generation.
 
+## 浏览器工作台 / Web studio
+
+现在可以在浏览器中完成：注册登录 → 上传户型图 → 设置尺寸 → 生成 3D →
+校正墙线和门洞 → 下载 GLB / OBJ 模型包。支持旋转、俯视、半墙查看、
+个人模型历史和校正草稿恢复。桌面 Tkinter 界面继续保留，两端账户独立。
+
+```bash
+# Python 3.12+，首次安装
+bash scripts/setup_web.sh
+bash scripts/start_web.sh
+# 打开 http://localhost:5000
+```
+
+默认使用 OpenCV + Shapely + Manifold 的线稿建模，无需神经网络权重。
+它提取横竖墙线，门洞需要在“校正平面”中核对、补画；低清图、家具线条、
+斜墙、复杂符号可能误识别。尺寸需要人工确认，结果不是施工级 BIM。
+仓库中那张带网格的示例图会明确标注使用已核对的坐标。
+
+扣子预览和部署入口已在 `.coze` 中配置为 Web 服务，默认端口 5000。
+依赖安装、持久化数据、可选增强识别和部署步骤见 [WEB_DEPLOY.md](WEB_DEPLOY.md)。
+
+```bash
+# 前端三维查看器已打包入库；修改 viewer.js 后才需要 Node.js 重建
+npm --prefix webapp ci
+npm --prefix webapp run build
+# Web 测试
+.venv/bin/python -m pip install httpx
+.venv/bin/python -m unittest discover -s tests -p 'test_web.py' -v
+```
+
 ## Pipeline Visualization
 
 The following images demonstrate the complete workflow from floor plan input to 3D model output:
@@ -111,6 +141,8 @@ To launch the interactive application with live preview:
 ```bash
 python ForgeFloor/extruder.py --gui
 ```
+
+The GUI starts with a login page. On first use, switch to **Register** to create a local account (credentials are stored in `ForgeFloor/users.json`, PBKDF2-hashed). The CLI does not require login.
 
 ### Command Line Interface (CLI)
 

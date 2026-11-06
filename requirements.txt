@@ -1,0 +1,2 @@
+# Cloud/web dependencies. The original neural pipeline remains optional.
+-r requirements-web.txt

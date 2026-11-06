@@ -1,0 +1,8 @@
+{
+  "name": "blueprint3d-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {"build": "esbuild viewer.js --bundle --minify --format=esm --outfile=static/viewer.bundle.js --legal-comments=eof"},
+  "dependencies": {"three": "0.170.0"},
+  "devDependencies": {"esbuild": "0.25.12"}
+}

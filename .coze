@@ -1,0 +1,26 @@
+[project]
+sub_id = "94c94b40"
+name = "floorplan-3d-pipeline"
+requires = ["python-3.12"]
+project_type = "web"
+entrypoint = "webapp/app.py"
+version = "0.1.9"
+
+[preview]
+preview_enable = "enabled"
+
+[dev]
+build = ["bash", "scripts/setup_web.sh"]
+run = ["bash", "scripts/start_web.sh"]
+
+[deploy]
+build = ["bash", "scripts/setup_web.sh"]
+run = ["bash", "scripts/start_web.sh"]
+deps = ["git"]
+
+[deploy.profile]
+kind = "service"
+flavor = "web"
+
+[subprojects]
+path = ["."]
