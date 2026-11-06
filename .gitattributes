@@ -1,0 +1,2 @@
+# Three.js bundles include GLSL template strings with upstream formatting.
+webapp/static/viewer.bundle.js -whitespace linguist-generated=true
