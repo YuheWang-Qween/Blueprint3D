@@ -10,8 +10,7 @@ version = "0.1.9"
 preview_enable = "enabled"
 
 [dev]
-build = ["bash", "scripts/setup_web.sh"]
-run = ["bash", "scripts/start_web.sh"]
+run = ["bash", "scripts/dev_web.sh"]
 
 [deploy]
 build = ["bash", "scripts/setup_web.sh"]
