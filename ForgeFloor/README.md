@@ -22,6 +22,11 @@ The 3D extrusion engine.
 - Generates walls, windows (with cutouts), and floors.
 - Exports the final scene to `.obj` format.
 
+### `auth.py`
+Local authentication for the desktop GUI.
+- Stores accounts in `users.json` next to this file (PBKDF2-hashed passwords).
+- Shows the blueprint-styled login window (sign in / register) before the main GUI opens.
+
 ## Usage
 
 Run the extruder script from this directory:

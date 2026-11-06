@@ -71,6 +71,8 @@ To launch the interactive application with live preview:
 python ForgeFloor/extruder.py --gui
 ```
 
+The GUI starts with a login page. On first use, switch to **Register** to create a local account (credentials are stored in `ForgeFloor/users.json`, PBKDF2-hashed). The CLI does not require login.
+
 ### Command Line Interface (CLI)
 
 To process an image automatically:

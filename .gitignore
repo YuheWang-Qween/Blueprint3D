@@ -90,5 +90,8 @@ logs/
 # Preview files
 .preview
 
+# Local login credentials (ForgeFloor GUI)
+ForgeFloor/users.json*
+
 # CodeGraph index
 .codegraph
