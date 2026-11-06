@@ -1,0 +1,167 @@
+<div id="blueprint3d-user-plan">
+  <h3>户型三维模型</h3>
+  <div class="bp-scene" role="img" aria-label="根据上传平面图校正的三维户型，包含墙体、六处平开门与一处推拉隔断。可拖动旋转、滚轮缩放，也可使用下方视角滑块。尺寸为估算。">
+    <img class="bp-fallback" alt="上传户型图的三维示意模型" src="__PREVIEW_IMAGE__">
+  </div>
+  <div class="viz-controls">
+    <label class="form-label">旋转角度 <span class="bp-az-value tabular-nums">−65°</span><input class="form-range bp-az" type="range" min="-180" max="180" value="-65" aria-label="旋转角度"></label>
+    <label class="form-label">俯视角度 <span class="bp-el-value tabular-nums">60°</span><input class="form-range bp-el" type="range" min="10" max="88" value="60" aria-label="俯视角度"></label>
+  </div>
+  <p class="bp-error text-small text-muted" role="status" hidden></p>
+  <script type="application/json" id="blueprint3d-user-mesh">__MESH_DATA__</script>
+</div>
+<style>
+#blueprint3d-user-plan { display: grid; gap: calc(var(--font-size-base) * 0.75); }
+#blueprint3d-user-plan .bp-scene { position: relative; width: 100%; height: clamp(310px, 68vw, 560px); overflow: hidden; }
+#blueprint3d-user-plan .bp-scene canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#blueprint3d-user-plan .bp-scene canvas:active { cursor: grabbing; }
+#blueprint3d-user-plan .bp-fallback { display: block; width: 100%; height: 100%; object-fit: contain; }
+#blueprint3d-user-plan .bp-fallback[hidden] { display: none; }
+</style>
+<script type="module">
+const root = document.getElementById('blueprint3d-user-plan');
+const area = root.querySelector('.bp-scene');
+const azInput = root.querySelector('.bp-az');
+const elInput = root.querySelector('.bp-el');
+const azLabel = root.querySelector('.bp-az-value');
+const elLabel = root.querySelector('.bp-el-value');
+try {
+  const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
+  const data = JSON.parse(document.getElementById('blueprint3d-user-mesh').textContent);
+  const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  area.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+  camera.up.set(0, 0, 1);
+  const group = new THREE.Group();
+  const materials = {};
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = colorCanvas.height = 1;
+  const ctx = colorCanvas.getContext('2d', {willReadFrequently:true});
+  const probe = document.createElement('span');
+  probe.hidden = true;
+  root.appendChild(probe);
+  function tokenColor(token) {
+    probe.style.color = `var(${token})`;
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = getComputedStyle(probe).color;
+    ctx.fillRect(0, 0, 1, 1);
+    const p = ctx.getImageData(0, 0, 1, 1).data;
+    return new THREE.Color().setRGB(p[0]/255, p[1]/255, p[2]/255, THREE.SRGBColorSpace);
+  }
+  const light = new THREE.HemisphereLight(0xffffff, 0xffffff, 1.2);
+  light.position.set(0, 0, 1);
+  scene.add(light);
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(-8, -10, 16);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.7);
+  fill.position.set(12, 8, 10);
+  scene.add(fill);
+  materials.wall = new THREE.MeshStandardMaterial({roughness:0.88, metalness:0, side:THREE.DoubleSide, flatShading:true});
+  materials.floor = new THREE.MeshStandardMaterial({roughness:1, metalness:0, side:THREE.DoubleSide});
+  materials.glass = new THREE.MeshStandardMaterial({roughness:0.35, metalness:0, transparent:true, opacity:0.25, depthWrite:false, side:THREE.DoubleSide});
+  materials.door = new THREE.MeshStandardMaterial({roughness:0.85, metalness:0, side:THREE.DoubleSide, flatShading:true});
+  materials.frame = new THREE.MeshStandardMaterial({roughness:0.7, metalness:0.1, side:THREE.DoubleSide});
+  materials.edges = new THREE.LineBasicMaterial({transparent:true, opacity:0.16});
+  for (const entry of data) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(entry.positions, 3));
+    g.setIndex(entry.indices);
+    g.computeVertexNormals();
+    const mesh = new THREE.Mesh(g, materials[entry.kind]);
+    mesh.name = entry.name;
+    group.add(mesh);
+    if (entry.kind === 'wall') group.add(new THREE.LineSegments(new THREE.EdgesGeometry(g,30),materials.edges));
+  }
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const scale = 10 / Math.max(size.x, size.y);
+  group.position.copy(center).multiplyScalar(-scale);
+  group.scale.setScalar(scale);
+  scene.add(group);
+  let az = -65, el = 60, distance = 21;
+  function restore(state) {
+    const s = state?.privateContent;
+    if (!s || s.plan !== 'user-floorplan-2026-11-06') return;
+    if (Number.isFinite(s.az)) az = Math.max(-180, Math.min(180, s.az));
+    if (Number.isFinite(s.el)) el = Math.max(10, Math.min(88, s.el));
+    if (Number.isFinite(s.distance)) distance = Math.max(13, Math.min(45, s.distance));
+  }
+  restore(window.openai?.widgetState);
+  function draw() {
+    const a = az * Math.PI / 180, e = el * Math.PI / 180;
+    camera.position.set(distance*Math.cos(e)*Math.cos(a), distance*Math.cos(e)*Math.sin(a), distance*Math.sin(e));
+    camera.lookAt(0, 0, 0);
+    azInput.value = String(Math.round(az));
+    elInput.value = String(Math.round(el));
+    azLabel.textContent = `${Math.round(az)}°`;
+    elLabel.textContent = `${Math.round(el)}°`;
+    renderer.render(scene, camera);
+    root.dataset.ready = 'true';
+    root.dataset.azimuth = String(az);
+    root.dataset.elevation = String(el);
+    root.dataset.distance = String(distance);
+  }
+  function theme() {
+    const bg = tokenColor('--background'), fg = tokenColor('--foreground');
+    materials.wall.color.copy(bg).lerp(fg, 0.24);
+    materials.floor.color.copy(bg).lerp(fg, 0.43);
+    materials.glass.color.copy(tokenColor('--blue'));
+    materials.door.color.copy(tokenColor('--orange')).lerp(bg,0.42);
+    materials.frame.color.copy(bg).lerp(fg,0.65);
+    materials.edges.color.copy(fg);
+    light.groundColor.copy(bg).lerp(fg,0.2);
+    draw();
+  }
+  function save() {
+    window.openai?.setWidgetState?.({modelContent:{sample:'User uploaded floor plan 2026-11-06',azimuth:Math.round(az),elevation:Math.round(el)},privateContent:{plan:'user-floorplan-2026-11-06',az,el,distance}})?.catch(()=>{});
+  }
+  function resize() {
+    const w = area.clientWidth, h = area.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+    draw();
+  }
+  new ResizeObserver(resize).observe(area);
+  new MutationObserver(theme).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',theme);
+  window.addEventListener('openai:set_globals',event=>{restore(event.detail?.globals?.widgetState);theme();});
+  azInput.addEventListener('input',()=>{az=Number(azInput.value);draw();});
+  elInput.addEventListener('input',()=>{el=Number(elInput.value);draw();});
+  azInput.addEventListener('change',save);
+  elInput.addEventListener('change',save);
+  let drag = null;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown',event=>{drag={x:event.clientX,y:event.clientY,az,el};canvas.setPointerCapture(event.pointerId);});
+  canvas.addEventListener('pointermove',event=>{
+    if (!drag) return;
+    az = ((drag.az-(event.clientX-drag.x)*0.35+540)%360)-180;
+    el = Math.max(10,Math.min(88,drag.el+(event.clientY-drag.y)*0.24));
+    draw();
+  });
+  canvas.addEventListener('pointerup',()=>{drag=null;save();});
+  canvas.addEventListener('pointercancel',()=>{drag=null;});
+  let wheelTimer;
+  canvas.addEventListener('wheel',event=>{
+    event.preventDefault();
+    distance=Math.max(13,Math.min(45,distance*Math.exp(event.deltaY*0.001)));
+    draw();
+    clearTimeout(wheelTimer);wheelTimer=setTimeout(save,250);
+  },{passive:false});
+  theme();resize();
+  root.querySelector('.bp-fallback').hidden = true;
+} catch(error) {
+  area.querySelector('canvas')?.remove();
+  root.querySelector('.bp-fallback').hidden = false;
+  const msg=root.querySelector('.bp-error');
+  msg.hidden=false;
+  msg.textContent='三维预览暂不可用，已显示本地渲染图。';
+  console.error(error);
+}
+</script>

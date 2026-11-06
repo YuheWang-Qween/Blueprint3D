@@ -166,7 +166,10 @@ class MorphoExtruder:
         input_image_opacity: float = 0.7,
         segmentation_opacity: float = 0.3,
         export_obj: bool = True,
-        show_interactive: bool = True
+        show_interactive: bool = True,
+        geometry_mode: str = 'vector',
+        door_height: Optional[float] = None,
+        opening_struct_csv: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate a 3D model from processed floor plan data.
@@ -195,6 +198,9 @@ class MorphoExtruder:
             segmentation_opacity: Opacity of the segmentation overlay.
             export_obj: Whether to export the model as an OBJ file.
             show_interactive: Whether to open an interactive 3D viewer.
+            geometry_mode: 'vector' for unified solids, 'legacy' for pixel extrusion.
+            door_height: Door opening height; defaults to 80% of wall_height.
+            opening_struct_csv: Raw structural mask used to avoid expanded noise.
         
         Returns:
             Dictionary containing success status, generated file paths, and any errors.
@@ -206,6 +212,9 @@ class MorphoExtruder:
         }
         
         try:
+            os.makedirs(output_dir, exist_ok=True)
+            if geometry_mode not in ('vector', 'legacy'):
+                raise ValueError("geometry_mode must be 'vector' or 'legacy'")
             # 1. Load Data
             rooms_data, struct_data, img_array = self._load_and_transform_data(
                 rooms_csv, struct_csv, underlay_path, flip_y, flip_x, rotation, result
@@ -218,6 +227,24 @@ class MorphoExtruder:
                 flip_y, flip_x, rotation, output_dir
             )
             result['files']['preview_png'] = preview_path
+
+            if geometry_mode == 'vector':
+                opening_data = struct_data
+                if opening_struct_csv is not None:
+                    opening_data = apply_transformations(
+                        np.loadtxt(opening_struct_csv, delimiter=','), flip_y, flip_x, rotation
+                    )
+                self._extrude_vector(
+                    rooms_data, struct_data, opening_data, img_array, output_dir,
+                    wall_height, wall_thickness, contour_squareness, base_height,
+                    window_base_height, window_vertical_size, door_height,
+                    window_opening_clearance, show_windows, floor_opacity,
+                    show_input_image, show_segmentation, input_image_opacity,
+                    segmentation_opacity, export_obj, show_interactive, result,
+                )
+                result['success'] = True
+                self.last_result = result
+                return result
             
             # 3. Initialize 3D Plotter
             plotter = pv.Plotter(off_screen=not show_interactive)
@@ -284,6 +311,84 @@ class MorphoExtruder:
         
         self.last_result = result
         return result
+
+    def _extrude_vector(
+        self, rooms_data, struct_data, opening_data, img_array, output_dir,
+        wall_height, wall_thickness, contour_squareness, base_height,
+        window_base_height, window_vertical_size, door_height, clearance,
+        show_windows, floor_opacity, show_input_image, show_segmentation,
+        image_opacity, segmentation_opacity, export_obj, show_interactive, result,
+    ):
+        from vector_geometry import build_scene
+
+        scene = build_scene(
+            rooms_data, struct_data, opening_data=opening_data,
+            wall_height=wall_height, wall_thickness=wall_thickness,
+            tolerance=max(1., float(contour_squareness), wall_thickness/2),
+            base_height=base_height, window_base_height=window_base_height,
+            window_height=window_vertical_size, door_height=door_height,
+            opening_clearance=clearance,
+        )
+        self.last_scene = scene
+        self.walls, self.windows, self.floor = scene.walls, scene.windows, scene.floor
+        result['geometry'] = scene.metadata
+        all_meshes = list(scene.walls) + (scene.windows if show_windows else []) + [scene.floor]
+        blocks = pv.MultiBlock()
+        for i, mesh in enumerate(scene.walls):
+            blocks[f'wall_{i:02d}'] = mesh
+        if show_windows:
+            for i, mesh in enumerate(scene.windows):
+                blocks[f'window_{i:02d}'] = mesh
+        blocks['floor'] = scene.floor
+        scene_path = os.path.join(output_dir, 'scene.vtm')
+        blocks.save(scene_path)
+        result['files']['scene_vtm'] = scene_path
+        if export_obj:
+            self._export_obj(all_meshes, output_dir, result)
+        plotter = pv.Plotter(off_screen=not show_interactive, window_size=(1600, 1280))
+        try:
+            plotter.set_background('#f4f3ef')
+            for mesh in scene.walls:
+                plotter.add_mesh(mesh, color='#e6e2da', show_edges=False,
+                                 ambient=.35, diffuse=.65, smooth_shading=False)
+            if show_windows:
+                for mesh in scene.windows:
+                    plotter.add_mesh(mesh, color='#88b8c7', opacity=.3, show_edges=False)
+            floor_texture = None
+            if (show_input_image and img_array is not None) or show_segmentation:
+                blended = np.zeros((*rooms_data.shape, 3), dtype=float)
+                weight = 0.
+                if show_input_image and img_array is not None and image_opacity > 0:
+                    blended += img_array[..., :3] * image_opacity
+                    weight += image_opacity
+                if show_segmentation and segmentation_opacity > 0:
+                    colors = plt.get_cmap('Pastel1')
+                    segmentation = np.full_like(blended, 235)
+                    for i, rid in enumerate(np.unique(rooms_data[rooms_data > 0])):
+                        segmentation[rooms_data == rid] = np.asarray(colors(i % 9)[:3]) * 255
+                    blended += segmentation * segmentation_opacity
+                    weight += segmentation_opacity
+                if weight > 0:
+                    tex = np.clip(blended / weight, 0, 255).astype(np.uint8)
+                    self.floor.active_texture_coordinates = self.floor.points[:, :2] / np.array([rooms_data.shape[1]-1, rooms_data.shape[0]-1])
+                    floor_texture = pv.numpy_to_texture(np.flipud(tex))
+            plotter.add_mesh(self.floor, color='#d8c9b2', texture=floor_texture,
+                             opacity=floor_opacity, show_edges=False, ambient=.35)
+            center = np.asarray(blocks.center)
+            span = max(blocks.bounds[1]-blocks.bounds[0], blocks.bounds[3]-blocks.bounds[2])
+            plotter.camera_position = [center+span*np.array([1.3, -1.8, 2.1]), center, (0, 0, 1)]
+            plotter.enable_parallel_projection()
+            plotter.reset_camera()
+            plotter.camera.zoom(1.05)
+            plotter.enable_anti_aliasing('ssaa')
+            if show_interactive:
+                plotter.show()
+            else:
+                render_path = os.path.join(output_dir, '3d_render.png')
+                plotter.screenshot(render_path)
+                result['files']['render_png'] = render_path
+        finally:
+            plotter.close()
 
     def _load_and_transform_data(
         self, rooms_csv, struct_csv, underlay_path, flip_y, flip_x, rotation, result

@@ -1,0 +1,63 @@
+{
+  "source": "examples/user-floorplan-2026-11-06/traced-plan.json",
+  "method": "Source-image wall centerlines and door symbols reviewed manually after the neural model misclassified the background grid.",
+  "units": "meters; illustrative, unmeasured scale",
+  "scale_m_per_pixel": 0.013235294117647059,
+  "scale_note": "Illustrative scale only: a 68-pixel door symbol is assumed to span 0.90 m. The source has no dimension annotations.",
+  "wall_height_m": 2.8,
+  "door_height_m": 2.1,
+  "hinged_doors": 6,
+  "sliding_partitions": 1,
+  "windows": 0,
+  "triangles": 760,
+  "mesh_parts": 18,
+  "all_meshes_closed": true,
+  "opening_checks": [
+    {
+      "opening": "north_left",
+      "clear_below_header": true,
+      "header_preserved": true
+    },
+    {
+      "opening": "north_middle",
+      "clear_below_header": true,
+      "header_preserved": true
+    },
+    {
+      "opening": "north_right_access",
+      "clear_below_header": true,
+      "header_preserved": true
+    },
+    {
+      "opening": "east_room",
+      "clear_below_header": true,
+      "header_preserved": true
+    },
+    {
+      "opening": "east_small_room",
+      "clear_below_header": true,
+      "header_preserved": true
+    },
+    {
+      "opening": "entry",
+      "clear_below_header": true,
+      "header_preserved": true
+    },
+    {
+      "opening": "sliding_partition",
+      "clear_below_header": true,
+      "header_preserved": true
+    }
+  ],
+  "glb_roundtrip_passed": true,
+  "notes": [
+    "The two crossed squares are retained as full-height structural blocks; their exact function is unlabelled.",
+    "The two thin offset lines on the left are interpreted as a sliding partition. Glass material is illustrative.",
+    "No unambiguous window symbols were present, so none were added."
+  ],
+  "formats": {
+    "glb": "Y up",
+    "obj": "Z up",
+    "vtm": "Z up"
+  }
+}

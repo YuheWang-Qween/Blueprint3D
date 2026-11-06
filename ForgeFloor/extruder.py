@@ -42,7 +42,7 @@ class NeuralInferenceOrchestrator:
         Args:
             project_root: Root directory containing SplitFloor/ and SemaFloor/
         """
-        self.project_root = Path(project_root)
+        self.project_root = Path(project_root).expanduser().resolve()
         self.splitfloor_dir = self.project_root / 'SplitFloor'
         self.semafloor_dir = self.project_root / 'SemaFloor'
         
@@ -50,9 +50,9 @@ class NeuralInferenceOrchestrator:
         """Check if neural network modules are available."""
         status = {
             'splitfloor_exists': (self.splitfloor_dir / 'deploy.py').exists(),
-            'semafloor_exists': (self.semafloor_dir / 'deploy.py').exists(),
-            'splitfloor_checkpoint': (self.splitfloor_dir / 'checkpoints').exists(),
-            'semafloor_checkpoint': (self.semafloor_dir / 'checkpoints').exists()
+            'semafloor_exists': (self.semafloor_dir / 'deploy_sema.py').is_file(),
+            'splitfloor_checkpoint': (self.splitfloor_dir / 'checkpoints/splitfloor_best_miou.pth').is_file(),
+            'semafloor_checkpoint': (self.semafloor_dir / 'checkpoints/best_semafloor_model.pth').is_file()
         }
         return status
     
@@ -75,6 +75,9 @@ class NeuralInferenceOrchestrator:
         """
         if callback:
             callback("[INFO] Running SplitFloor structural extraction...", 15)
+
+        image_path = str(Path(image_path).expanduser().resolve())
+        output_dir = str(Path(output_dir).expanduser().resolve())
         
         deploy_script = self.splitfloor_dir / 'deploy.py'
         
@@ -90,7 +93,8 @@ class NeuralInferenceOrchestrator:
             cmd = [
                 sys.executable,
                 str(deploy_script),
-                '--image', str(image_path)
+                '--image', image_path,
+                '--output_dir', str(temp_dir),
             ]
             
             # Change to SplitFloor directory to ensure relative paths work
@@ -117,7 +121,7 @@ class NeuralInferenceOrchestrator:
             missing_files = []
             
             for key, filename in expected_files.items():
-                src_path = self.splitfloor_dir / filename
+                src_path = temp_dir / filename
                 if src_path.exists():
                     # Move to output directory
                     dest_path = Path(output_dir) / f"split_{filename}"
@@ -165,58 +169,25 @@ class NeuralInferenceOrchestrator:
         if callback:
             callback("[INFO] Running SemaFloor semantic segmentation...", 30)
         
-        deploy_script = self.semafloor_dir / 'deploy.py'
+        deploy_script = self.semafloor_dir / 'deploy_sema.py'
         
         if not deploy_script.exists():
             return False, {}, f"SemaFloor deploy script not found at {deploy_script}"
         
         try:
-            # Create a custom script to run Semafloor programmatically
-            # This avoids the demo() function and gives us control
-            
-            inference_code = f"""
-import sys
-sys.path.insert(0, r'{self.semafloor_dir}')
-
-from deploy_sema import SemafloorPredictor
-
-predictor = SemafloorPredictor(
-    checkpoint_path=r'{self.semafloor_dir}/checkpoints/best_semafloor_model.pth',
-    img_size=512
-)
-
-result = predictor.predict(
-    image_path=r'{image_path}',
-    threshold=0.5,
-    return_boundary=False,
-    visualize=False,
-    save_mask=True,
-    save_overlay=True,
-    output_dir=r'{output_dir}'
-)
-
-# Export CSV
-import numpy as np
-csv_path = r'{output_dir}/sema.csv'
-np.savetxt(csv_path, result['room_mask'], fmt='%d', delimiter=',')
-print(f"Saved sema.csv to {{csv_path}}")
-"""
-            
-            # Write temporary script
-            temp_script = Path(output_dir) / 'temp_sema_inference.py'
-            temp_script.write_text(inference_code)
-            
-            # Run the script
+            image_path = str(Path(image_path).expanduser().resolve())
+            output_dir = str(Path(output_dir).expanduser().resolve())
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            # Pass paths as arguments, avoiding generated Python source and
+            # allowing spaces, non-ASCII characters and apostrophes in names.
             result = subprocess.run(
-                [sys.executable, str(temp_script)],
+                [sys.executable, str(deploy_script), '--image', image_path,
+                 '--output_dir', output_dir],
+                cwd=str(self.semafloor_dir),
                 capture_output=True,
                 text=True,
                 timeout=300
             )
-            
-            # Clean up temp script
-            if temp_script.exists():
-                temp_script.unlink()
             
             if result.returncode != 0:
                 error_msg = f"SemaFloor failed:\n{result.stderr}"
@@ -240,8 +211,8 @@ print(f"Saved sema.csv to {{csv_path}}")
                 else:
                     missing_files.append(filename)
             
-            if missing_files and 'sema_csv' in missing_files:
-                return False, files, f"Missing critical SemaFloor output: sema.csv"
+            if missing_files:
+                return False, files, f"Missing SemaFloor outputs: {missing_files}"
             
             if callback:
                 callback("[SUCCESS] SemaFloor complete", 40)
@@ -306,8 +277,8 @@ class ForgePlanPipeline:
     """Core pipeline class that orchestrates the complete workflow."""
     
     def __init__(self, output_dir='outputs', project_root='.'):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
+        self.output_dir = Path(output_dir).expanduser().resolve()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.shape_processor = ShapeProcessor()
         self.morpho_extruder = MorphoExtruder()
         self.neural_orchestrator = NeuralInferenceOrchestrator(project_root)
@@ -346,7 +317,9 @@ class ForgePlanPipeline:
         segmentation_opacity: float = 0.4,
         export_obj: bool = True,
         show_interactive: bool = True,
-        callback=None
+        callback=None,
+        geometry_mode: str = 'vector',
+        door_height: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Run the complete pipeline.
@@ -394,7 +367,7 @@ class ForgePlanPipeline:
                 split_path = neural_files['split_csv_pipeline']
             if 'sema_csv' in neural_files:
                 sema_path = neural_files['sema_csv']
-            if input_image and not underlay_path:
+            if input_image and (underlay_path in (None, 'input.jpeg') or not os.path.isfile(underlay_path)):
                 underlay_path = input_image
             
             log("[SUCCESS] Neural inference complete", 45)
@@ -468,7 +441,10 @@ class ForgePlanPipeline:
                 input_image_opacity=input_image_opacity,
                 segmentation_opacity=segmentation_opacity,
                 export_obj=export_obj,
-                show_interactive=show_interactive
+                show_interactive=show_interactive,
+                geometry_mode=geometry_mode,
+                door_height=door_height,
+                opening_struct_csv=split_path if files_exist['split'] else None,
             )
             
             if not morpho_result['success']:
@@ -476,6 +452,8 @@ class ForgePlanPipeline:
                 return result
             
             result['files'].update(morpho_result['files'])
+            if 'geometry' in morpho_result:
+                result['geometry'] = morpho_result['geometry']
             log("[SUCCESS] 3D extrusion complete", 95)
             
         except Exception as e:
@@ -696,7 +674,7 @@ def create_gui(project_root='.'):
             
             morpho_params = [
                 ('wall_height', 200, 50, 500, 10),
-                ('room_height', 200, 50, 500, 10),
+                ('door_height', 160, 20, 500, 10),
                 ('wall_thickness', 4, 1, 20, 1),
                 ('contour_squareness', 1, 0, 10, 1),
                 ('window_base_height', 50, 0, 200, 10),
@@ -1108,7 +1086,11 @@ def cli_mode(args):
         rotation=args.rotation,
         show_segmentation=args.show_segmentation,
         export_obj=args.export_obj,
-        show_interactive=args.show_interactive
+        show_interactive=args.show_interactive,
+        geometry_mode=args.geometry_mode,
+        door_height=args.door_height,
+        window_base_height=args.window_base_height,
+        window_vertical_size=args.window_vertical_size,
     )
     
     if not result['success']:
@@ -1157,20 +1139,28 @@ def main():
     parser.add_argument('--wall_height', type=int, default=200,
                        help='Height of walls')
     parser.add_argument('--room_height', type=int, default=200,
-                       help='Height of rooms')
+                       help='Legacy mode wall height; vector mode uses wall_height')
+    parser.add_argument('--geometry_mode', choices=['vector', 'legacy'], default='vector',
+                       help='Vector solids or original pixel extrusion')
+    parser.add_argument('--door_height', type=float, default=None,
+                       help='Door opening height; defaults to 80%% of wall height')
+    parser.add_argument('--window_base_height', type=float, default=50,
+                       help='Window sill height')
+    parser.add_argument('--window_vertical_size', type=float, default=100,
+                       help='Window opening height')
     parser.add_argument('--wall_thickness', type=int, default=4,
                        help='Thickness of walls in pixels')
-    parser.add_argument('--flip_y', action='store_true', default=True,
+    parser.add_argument('--flip_y', action=argparse.BooleanOptionalAction, default=True,
                        help='Flip vertically')
-    parser.add_argument('--flip_x', action='store_true', default=True,
+    parser.add_argument('--flip_x', action=argparse.BooleanOptionalAction, default=True,
                        help='Flip horizontally')
     parser.add_argument('--rotation', type=int, default=180,
                        help='Rotation angle (multiples of 90)')
-    parser.add_argument('--show_segmentation', action='store_true', default=True,
+    parser.add_argument('--show_segmentation', action=argparse.BooleanOptionalAction, default=True,
                        help='Show room colors in 3D')
-    parser.add_argument('--export_obj', action='store_true', default=True,
+    parser.add_argument('--export_obj', action=argparse.BooleanOptionalAction, default=True,
                        help='Export 3D model as OBJ')
-    parser.add_argument('--show_interactive', action='store_true', default=True,
+    parser.add_argument('--show_interactive', action=argparse.BooleanOptionalAction, default=True,
                        help='Show interactive 3D viewer')
     
     args = parser.parse_args()

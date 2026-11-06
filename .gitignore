@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+outputs/
+.DS_Store
+outputs-*.log
+SplitFloor/checkpoints/*.pth
+SplitFloor/checkpoints/*.pth.part
+SemaFloor/checkpoints/*.pth
+SemaFloor/checkpoints/*.pth.part

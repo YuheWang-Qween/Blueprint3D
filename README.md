@@ -51,15 +51,56 @@ The project is organized into three main modules:
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Install the required dependencies:
+Ensure you have Python 3.10+ installed (the local preview was verified with Python 3.13). Install the required dependencies:
 
 ```bash
-pip install torch torchvision numpy matplotlib opencv-python pillow pyvista scikit-image tqdm pandas albumentations scipy scikit-learn
+pip install torch torchvision numpy matplotlib opencv-python pillow pyvista scikit-image tqdm pandas albumentations scipy scikit-learn shapely manifold3d
 ```
 
 *Note: A CUDA-capable GPU is recommended for training and fast inference.*
 
 ## Usage
+
+### Local geometry improvements
+
+The default geometry engine now vectorizes and regularizes room outlines, joins
+shared walls, and cuts both door and window openings from closed wall solids.
+The original pixel-based engine remains available with `--geometry_mode legacy`.
+`--wall_height` controls wall height in vector mode; `--door_height` defaults to
+80% of that height. Boolean options can be disabled, for example
+`--no-show_interactive` for headless rendering.
+
+To reproduce the included historical sample without neural checkpoints:
+
+```bash
+python -m pip install -r requirements-preview-lock.txt
+python scripts/optimize_sample.py
+python -m unittest discover -s tests -v
+```
+
+See [PREVIEW.md](PREVIEW.md) for local outputs, checkpoint provenance, and current
+limitations. The historical CSV sample validates geometry generation. Separately,
+two images have been tested through CPU neural inference and OBJ export using
+locally downloaded checkpoints; this is a smoke test, not an accuracy benchmark.
+Weights are not distributed with the code. `requirements-inference-lock.txt`
+records the tested Python 3.13 inference environment.
+
+### Reviewed floor-plan model
+
+The [uploaded floor-plan example](examples/user-floorplan-2026-11-06/) includes
+the source image, reviewed wall and door coordinates, and downloadable GLB/OBJ
+models. Its background grid confused neural segmentation, so the delivered model
+uses manually reviewed geometry. Dimensions are illustrative; wall height is
+assumed to be 2.8 m.
+
+![Reviewed floor-plan model](examples/user-floorplan-2026-11-06/model/preview.png)
+
+To rebuild it without neural checkpoints:
+
+```bash
+python -m pip install -r requirements-model-lock.txt
+python scripts/build_traced_plan.py
+```
 
 The main entry point for the pipeline is located in the `ForgeFloor` directory.
 

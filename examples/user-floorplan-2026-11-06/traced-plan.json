@@ -1,0 +1,38 @@
+{
+  "source_image": "input.png",
+  "method": "Source-image wall centerlines and door symbols reviewed manually after the neural model misclassified the background grid.",
+  "scale_m_per_pixel": 0.013235294117647059,
+  "scale_note": "Illustrative scale only: a 68-pixel door symbol is assumed to span 0.90 m. The source has no dimension annotations.",
+  "origin_px": [166, 730],
+  "wall_height_m": 2.8,
+  "door_height_m": 2.1,
+  "external_wall_thickness_m": 0.18,
+  "internal_wall_thickness_m": 0.12,
+  "footprint_px": [[166,530],[265,530],[265,139],[730,139],[730,69],[985,69],[985,547],[734,547],[734,730],[166,730]],
+  "internal_walls_px": [
+    [[558,139],[558,372]],
+    [[265,372],[732,372]],
+    [[731,139],[731,439]],
+    [[734,439],[858,439]],
+    [[858,366],[985,366]],
+    [[858,366],[858,547]],
+    [[265,531],[434,531]],
+    [[289,531],[289,730]],
+    [[434,372],[434,531]]
+  ],
+  "square_features_px": [[265,139,314,191],[676,686,734,730]],
+  "square_feature_note": "The two crossed squares are retained as full-height structural blocks; their exact function is unlabelled.",
+  "doors": [
+    {"id":"north_left","hinge_px":[552,372],"closed_tip_px":[489,372],"open_degrees":70},
+    {"id":"north_middle","hinge_px":[564,372],"closed_tip_px":[628,372],"open_degrees":-70},
+    {"id":"north_right_access","hinge_px":[731,439],"closed_tip_px":[731,374],"open_degrees":70},
+    {"id":"east_room","hinge_px":[858,366],"closed_tip_px":[858,435],"open_degrees":-70},
+    {"id":"east_small_room","hinge_px":[734,439],"closed_tip_px":[793,439],"open_degrees":70},
+    {"id":"entry","hinge_px":[734,606],"closed_tip_px":[734,658],"open_degrees":70}
+  ],
+  "sliding_opening_px": [[434,378],[434,526]],
+  "sliding_panels_px": [[[439,379],[439,459]],[[427,443],[427,527]]],
+  "sliding_note": "The two thin offset lines on the left are interpreted as a sliding partition. Glass material is illustrative.",
+  "windows": [],
+  "window_note": "No unambiguous window symbols were present, so none were added."
+}

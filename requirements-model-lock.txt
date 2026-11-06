@@ -1,0 +1,2 @@
+-r requirements-preview-lock.txt
+trimesh==5.2.0

@@ -147,7 +147,8 @@ class SemafloorNet(nn.Module):
         self.deep_supervision = deep_supervision
         
         # ==================== ENCODER (ResNet50) ====================
-        resnet = models.resnet50(pretrained=pretrained)
+        weights = models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None
+        resnet = models.resnet50(weights=weights)
         
         # Modified stem: replace 7x7 stride-2 conv + maxpool with stride-2 conv only
         # This preserves more spatial information for thin walls

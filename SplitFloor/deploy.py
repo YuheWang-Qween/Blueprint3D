@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
@@ -11,7 +12,7 @@ from data import preprocess_image, restore_size
 # Configuration
 # =================================================
 
-MODEL_WEIGHTS = "checkpoints/splitfloor_best_miou.pth"
+MODEL_WEIGHTS = str(Path(__file__).resolve().parent / "checkpoints/splitfloor_best_miou.pth")
 NUM_CLASSES = 4
 
 OUTPUT_MASK_RAW = "output_mask_raw.png"      # uses class indices
@@ -66,27 +67,30 @@ def save_csv(pred_mask, save_path):
 # Inference
 # =================================================
 
-def infer(image_path):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+def infer(image_path, output_dir='.', weights=MODEL_WEIGHTS, device=None):
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    output_dir = Path(output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load model
-    model = SplitFloor(num_classes=NUM_CLASSES).to(device)
-    model.load_state_dict(torch.load(MODEL_WEIGHTS, map_location=device))
+    model = SplitFloor(num_classes=NUM_CLASSES, pretrained=False)
+    model.load_state_dict(torch.load(weights, map_location='cpu', weights_only=True, mmap=True), strict=True)
+    model.to(device)
     model.eval()
 
     img_tensor, orig_size = preprocess_image(image_path)
     img_tensor = img_tensor.to(device)
 
-    with torch.no_grad():
+    with torch.inference_mode():
         pred = model(img_tensor).argmax(1).squeeze(0).cpu().numpy()
 
     # Restore mask to original image size
     pred = restore_size(pred, orig_size)
 
     # Outputs
-    save_raw_mask(pred, OUTPUT_MASK_RAW)
-    save_color_mask(pred, OUTPUT_MASK_COLOR)
-    save_csv(pred, OUTPUT_CSV)
+    save_raw_mask(pred, output_dir / OUTPUT_MASK_RAW)
+    save_color_mask(pred, output_dir / OUTPUT_MASK_COLOR)
+    save_csv(pred, output_dir / OUTPUT_CSV)
 
     print("\n[INFO] Inference complete.")
     print(f"Files generated:\n - {OUTPUT_MASK_RAW}\n - {OUTPUT_MASK_COLOR}\n - {OUTPUT_CSV}")
@@ -101,6 +105,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", type=str, required=True,
                         help="Path to input image")
+    parser.add_argument('--output_dir', default='.')
+    parser.add_argument('--weights', default=MODEL_WEIGHTS)
+    parser.add_argument('--device', choices=['cpu', 'cuda', 'mps'], default=None)
 
     args = parser.parse_args()
-    infer(args.image)
+    infer(args.image, args.output_dir, args.weights, args.device)

@@ -10,6 +10,7 @@ Features:
 """
 
 import os
+from pathlib import Path
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -39,19 +40,20 @@ class SemafloorPredictor:
         print(f"Loading model on {self.device}...")
         
         # Load model
-        self.model = SemafloorNet(pretrained=False, deep_supervision=True).to(self.device)
+        self.model = SemafloorNet(pretrained=False, deep_supervision=True)
         
         # Load checkpoint
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=True, mmap=True)
         
         if 'model_state_dict' in checkpoint:
-            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.model.load_state_dict(checkpoint['model_state_dict'], strict=True)
             print(f"Loaded checkpoint from epoch {checkpoint.get('epoch', 'unknown')}")
             print(f"  Val Loss: {checkpoint.get('val_loss', 'N/A')}")
             print(f"  Val IoU: {checkpoint.get('val_iou', 'N/A')}")
         else:
-            self.model.load_state_dict(checkpoint)
+            self.model.load_state_dict(checkpoint, strict=True)
         
+        self.model.to(self.device)
         self.model.eval()
         print("Model loaded successfully!\n")
         
@@ -94,7 +96,7 @@ class SemafloorPredictor:
         img_tensor = self.transform(img).unsqueeze(0).to(self.device)
         
         # Inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(img_tensor)
             
             room_logits = outputs['room']
@@ -326,5 +328,24 @@ def demo():
     # print(f"\nProcessed {len(results)} images")
 
 
-if __name__ == "__main__":
-    demo()
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Segment rooms in a floor plan image')
+    parser.add_argument('--image', required=True)
+    parser.add_argument('--output_dir', default='outputs')
+    parser.add_argument('--checkpoint', default=str(Path(__file__).resolve().parent / 'checkpoints/best_semafloor_model.pth'))
+    parser.add_argument('--device', choices=['cpu', 'cuda', 'mps'], default=None)
+    args = parser.parse_args()
+    output = Path(args.output_dir).expanduser().resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    predictor = SemafloorPredictor(args.checkpoint, device=args.device)
+    result = predictor.predict(
+        image_path=str(Path(args.image).expanduser().resolve()),
+        threshold=.5, visualize=False, save_mask=True, save_overlay=True,
+        output_dir=str(output),
+    )
+    predictor.export_to_csv(result['room_mask'], output / 'sema.csv')
+
+
+if __name__ == '__main__':
+    main()
