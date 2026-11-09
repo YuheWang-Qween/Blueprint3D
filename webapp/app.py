@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -89,8 +90,26 @@ def neural_available():
         'SplitFloor/checkpoints/splitfloor_best_miou.pth','SemaFloor/checkpoints/best_semafloor_model.pth'])
 
 
+def default_data_dir():
+    # FaaS/containers may mount the project root read-only; only the implicit
+    # default degrades so an explicit BLUEPRINT_DATA_DIR still fails loudly.
+    preferred=ROOT/'var/web'
+    try:
+        preferred.mkdir(parents=True,exist_ok=True)
+        probe=preferred/'.write-probe'
+        probe.touch();probe.unlink()
+        return preferred
+    except OSError:
+        fallback=Path(tempfile.gettempdir())/'blueprint-web'
+        fallback.mkdir(parents=True,exist_ok=True)
+        print(f'[blueprint] data dir {preferred} is not writable; falling back to {fallback} '
+              '(ephemeral, data will not survive restarts; set BLUEPRINT_DATA_DIR to a persistent volume)',
+              file=sys.stderr,flush=True)
+        return fallback
+
+
 def create_app(data_dir=None):
-    store=Store(data_dir or os.getenv('BLUEPRINT_DATA_DIR',ROOT/'var/web'))
+    store=Store(data_dir or os.getenv('BLUEPRINT_DATA_DIR') or default_data_dir())
     pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='blueprint-job')
     limits={}
     lock=threading.Lock()

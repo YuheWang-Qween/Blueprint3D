@@ -42,3 +42,4 @@
 - 三个模块间通过相对项目根的路径引用，运行 `ForgeFloor` 时应保证 `SplitFloor`/`SemaFloor` 目录相对项目根可访问。
 - `auth.py` 中 tkinter 是在 `LoginWindow.__init__` 内延迟导入的，方法体里不要引用 `tk.X` 之类的模块常量（用字符串 `'x'`/`'both'` 代替），否则 NameError。
 - `ForgeFloor/users.json` 是本地账号库（含 PBKDF2 哈希），已 gitignore；删除该文件等于清空所有账号。
+- 扣子 FaaS 部署环境把项目根（`/opt/bytefaas`）挂载为只读：`webapp/app.py` 的默认数据目录不可写时会自动降级到 `tempfile.gettempdir()/blueprint-web` 并在 stderr 打警告（数据不跨重启保留）；显式设置 `BLUEPRINT_DATA_DIR` 时不会降级，配置错误会直接报错暴露。生产仍需持久磁盘。
