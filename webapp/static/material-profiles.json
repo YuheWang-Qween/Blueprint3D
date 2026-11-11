@@ -1,0 +1,54 @@
+{
+  "default": {
+    "name": "原始",
+    "roughness": 0.8,
+    "metalness": 0,
+    "texture": null
+  },
+  "fabric": {
+    "name": "织物",
+    "roughness": 0.98,
+    "metalness": 0,
+    "texture": "fabric.png",
+    "repeat": 4
+  },
+  "leather": {
+    "name": "皮革",
+    "roughness": 0.32,
+    "metalness": 0,
+    "texture": "leather.png",
+    "repeat": 3
+  },
+  "velvet": {
+    "name": "绒面",
+    "roughness": 1,
+    "metalness": 0,
+    "texture": "velvet.png",
+    "repeat": 2
+  },
+  "wood": {
+    "name": "木饰面",
+    "roughness": 0.62,
+    "metalness": 0,
+    "texture": "wood.png",
+    "repeat": 2
+  },
+  "painted": {
+    "name": "哑光漆",
+    "roughness": 0.72,
+    "metalness": 0,
+    "texture": null
+  },
+  "ceramic": {
+    "name": "釉面",
+    "roughness": 0.16,
+    "metalness": 0,
+    "texture": null
+  },
+  "metal": {
+    "name": "金属",
+    "roughness": 0.28,
+    "metalness": 0.75,
+    "texture": null
+  }
+}

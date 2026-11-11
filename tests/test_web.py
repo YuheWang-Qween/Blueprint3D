@@ -199,6 +199,40 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.client.put('/api/jobs/waiting/layout',headers=HEADERS,json={}).status_code,409)
         self.assertEqual(self.client.get('/api/jobs/waiting/furnished.glb').status_code,409)
 
+    def test_decoration_roundtrip_legacy_defaults_and_textured_export(self):
+        import trimesh
+        self.register()
+        job=self.completed(self.upload().json()['id'])
+        url=f"/api/jobs/{job['id']}/layout"
+        item=dict(id='sofa',type='sofa',x=3,z=-4,width=2.4,depth=1.4,height=.85,rotation=90,color='#a56e46')
+        old={'version':1,'revision':0,'items':[item],'finishes':{'floor':'original','wall':'original'}}
+        # Simulate a document written by the previous version of the application.
+        self.app.state.store.save_layout(job['id'],old)
+        layout=self.client.get(url).json()
+        self.assertEqual(layout['items'][0]['variant'],'standard')
+        self.assertEqual(layout['items'][0]['material'],'default')
+        decorated={**layout['items'][0],'variant':'chaise-left','material':'fabric'}
+        layout['items']=[decorated]
+        response=self.client.put(url,headers=HEADERS,json=layout)
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertEqual(self.client.get(url).json()['items'],[decorated])
+        for key in ['x','z','width','depth','height','rotation']:
+            self.assertEqual(decorated[key],item[key])
+        exported=self.client.get(f"/api/jobs/{job['id']}/furnished.glb")
+        scene=trimesh.load(io.BytesIO(exported.content),file_type='glb',force='scene')
+        parts=[mesh for name,mesh in scene.geometry.items() if name.startswith('furniture_sofa_')]
+        textured=[mesh for mesh in parts if mesh.visual.material.baseColorTexture is not None]
+        self.assertGreater(len(textured),0)
+        self.assertEqual(textured[0].visual.material.baseColorTexture.size,(128,128))
+        self.assertEqual(float(textured[0].visual.uv.max()),4)
+        self.assertAlmostEqual(textured[0].visual.material.roughnessFactor,.98)
+        self.assertEqual(textured[0].visual.material.baseColorFactor.tolist()[:3],[165,110,70])
+        saved=response.json()
+        for patch in [{'variant':'not-real'},{'material':'ceramic'}]:
+            bad={**saved,'items':[{**decorated,**patch}]}
+            self.assertEqual(self.client.put(url,headers=HEADERS,json=bad).status_code,422)
+        self.assertEqual(self.client.get(url).json(),saved)
+
 
 if __name__=='__main__':
     unittest.main()

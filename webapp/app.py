@@ -285,7 +285,8 @@ def create_app(data_dir=None):
     @app.get('/api/jobs/{jid}/layout')
     def get_layout(jid: str, request: Request):
         completed_job(request, jid)
-        return store.layout(jid)
+        # Normalize optional appearance fields without rewriting older saved layouts.
+        return Layout.model_validate(store.layout(jid)).model_dump()
 
     @app.put('/api/jobs/{jid}/layout')
     def put_layout(jid: str, data: Layout, request: Request):

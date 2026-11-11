@@ -4,6 +4,16 @@ export const WALLS={original:null,ivory:'#eee9dc',white:'#f4f5ef',sage:'#cbd4c4'
 export const emptyLayout=()=>({version:1,revision:0,items:[],finishes:{floor:'original',wall:'original'}});
 export const radians=degrees=>degrees*Math.PI/180;
 export const angle=value=>((value%360)+360)%360;
+export const variantsFor=definition=>[{id:'standard',name:definition.standardName||'基础款',parts:definition.parts},...(definition.variants||[])];
+export const partsFor=(definition,variant='standard')=>variantsFor(definition).find(v=>v.id===variant)?.parts||definition.parts;
+export function appearance(item,definition,patch){
+  const variant=patch.variant??item.variant??'standard',material=patch.material??item.material??'default';
+  if(!variantsFor(definition).some(v=>v.id===variant)||!['default',...(definition.materials||[])].includes(material))throw Error('这件家具不支持所选款式或材质。');
+  const color=patch.color??item.color;
+  if(!/^#[0-9a-fA-F]{6}$/.test(color))throw Error('请选择有效颜色。');
+  // Changing appearance never moves or resizes the rough-layout footprint.
+  return {...item,variant,material,color};
+}
 export function extent(item){
   const a=radians(item.rotation),c=Math.abs(Math.cos(a)),s=Math.abs(Math.sin(a));
   return {x:(c*item.width+s*item.depth)/2,z:(s*item.width+c*item.depth)/2};
@@ -42,7 +52,8 @@ export function validateLayout(data,catalog,bounds){
     if(!/^#[0-9a-fA-F]{6}$/.test(item.color))throw Error('设施颜色无效。');
     const e=extent(item);
     if(item.x-e.x<bounds.minX-.002||item.x+e.x>bounds.maxX+.002||item.z-e.z<bounds.minZ-.002||item.z+e.z>bounds.maxZ+.002)throw Error('方案中的设施超出户型范围。');
-    return Object.fromEntries(['id','type','x','z','width','depth','height','rotation','color'].map(k=>[k,item[k]]));
+    const normalized=Object.fromEntries(['id','type','x','z','width','depth','height','rotation','color'].map(k=>[k,item[k]]));
+    return appearance(normalized,catalog.find(c=>c.id===item.type),{variant:item.variant,material:item.material});
   });
   return {version:1,revision:0,items,finishes:{floor:data.finishes.floor,wall:data.finishes.wall}};
 }
@@ -50,11 +61,12 @@ export function validateLayout(data,catalog,bounds){
 export function drawFurniture(ctx,item,definition,scale=1){
   ctx.save();ctx.translate(item.x,item.z);ctx.rotate(radians(item.rotation));
   // Draw lower parts first so the plan shows cushions, pillows and sanitary fixtures.
-  for(const part of [...definition.parts].sort((a,b)=>(a.position[1]+a.size[1]/2)-(b.position[1]+b.size[1]/2))){
+  for(const part of [...partsFor(definition,item.variant)].sort((a,b)=>(a.position[1]+a.size[1]/2)-(b.position[1]+b.size[1]/2))){
     const x=part.position[0]*item.width,z=part.position[2]*item.depth,w=part.size[0]*item.width,d=part.size[2]*item.depth;
     ctx.fillStyle=part.color==='body'?item.color:part.color;ctx.strokeStyle='#5b655f';ctx.lineWidth=.65/scale;
     ctx.beginPath();
     if(part.shape==='cylinder')ctx.ellipse(x,z,w/2,d/2,0,0,Math.PI*2);
+    else if(part.shape==='rounded-box'&&ctx.roundRect)ctx.roundRect(x-w/2,z-d/2,w,d,Math.min(w,d)*.12);
     else ctx.rect(x-w/2,z-d/2,w,d);
     ctx.fill();ctx.stroke();
   }

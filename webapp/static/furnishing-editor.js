@@ -64,6 +64,7 @@ export class FurnishingEditor {
     this.document=emptyLayout();this.dirty=false;this.saving=null;this.blocked=false;this.history=[];this.future=[];
     this.viewer()?.setLayout(null,[]);$('furnish-workspace').hidden=true;$('furnish-empty').hidden=false;
     $('furnish-empty-text').textContent='生成模型后，即可放入床、沙发、橱柜和卫浴设施。';$('furnish-start').hidden=false;
+    this.onReset?.();
   }
   async load(job,user,discardDraft=false){
     this.reset();this.job=job;this.user=user;
@@ -72,7 +73,7 @@ export class FurnishingEditor {
     try{
       const [catalog,meshes,document]=await Promise.all([this.catalogPromise,this.api(`/api/jobs/${job.id}/files/mesh.json`),this.api(`/api/jobs/${job.id}/layout`)]);
       if(token!==this.token)return;
-      this.catalog=catalog;this.meshes=meshes;this.bounds=meshBounds(meshes);this.document=document;
+      this.catalog=catalog;this.meshes=meshes;this.bounds=meshBounds(meshes);this.document={...validateLayout(document,catalog,this.bounds),revision:document.revision};
       this.paths=meshes.map(mesh=>{
         const path=new Path2D(),p=mesh.positions;
         for(let i=0;i<mesh.indices.length;i+=3){
@@ -90,7 +91,7 @@ export class FurnishingEditor {
       try{draft=JSON.parse(localStorage.getItem(this.storageKey()));if(discardDraft){localStorage.removeItem(this.storageKey());draft=null;}}catch{}
       if(draft){
         try{
-          const valid=validateLayout(draft,catalog,this.bounds);this.document={...valid,revision:document.revision};this.dirty=content(valid)!==content(document);
+          const valid=validateLayout(draft,catalog,this.bounds);this.dirty=content(valid)!==content(this.document);this.document={...valid,revision:document.revision};
           if(this.dirty&&draft.revision!==document.revision)this.blocked=true;
         }catch{this.toast('本机旧草稿格式无效，已读取服务器保存的方案。',true);}
       }
@@ -110,7 +111,7 @@ export class FurnishingEditor {
     this.walls=plan.walls.map(convert);this.doors=plan.doors.map(convert);
   }
   selection(){return this.document.items.find(item=>item.id===this.selected);}
-  status(message,error=false){$('furnish-status').textContent=message;$('furnish-status').classList.toggle('save-error',error);$('furnish-reload').hidden=!this.blocked;}
+  status(message,error=false){$('furnish-status').textContent=message;$('furnish-status').classList.toggle('save-error',error);$('furnish-reload').hidden=!this.blocked;this.onStatus?.(message,error);}
   renderCatalog(){
     const group=$('furniture-category').value,host=$('furniture-catalog');host.replaceChildren();
     for(const definition of this.catalog.filter(c=>group==='all'||c.category===group)){
@@ -147,6 +148,7 @@ export class FurnishingEditor {
     this.canvas.style.cursor=pending?'crosshair':'default';
     document.querySelectorAll('.furniture-card').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.type===this.pending)));
     this.draw();
+    this.onUpdate?.();
   }
   remember(snapshot){this.history.push(snapshot);if(this.history.length>60)this.history.shift();this.future=[];}
   change(action){
@@ -154,7 +156,7 @@ export class FurnishingEditor {
     if(before!==content(this.document)){this.remember(JSON.parse(before));this.changed();}else this.refresh();
   }
   changed(){this.dirty=true;this.stash();this.refresh();this.preview();this.status(this.blocked?'服务器方案已更新，请先导出本机方案再重新读取。':'等待保存…',this.blocked);this.scheduleSave();}
-  preview(){this.viewer()?.setLayout(this.document,this.catalog);}
+  preview(){this.viewer()?.setLayout(this.document,this.catalog);this.viewer()?.select(this.selected);}
   scheduleSave(){clearTimeout(this.saveTimer);if(!this.blocked&&!this.drag)this.saveTimer=setTimeout(()=>this.save(),800);}
   async flush(){
     const token=this.token;
@@ -187,7 +189,11 @@ export class FurnishingEditor {
   rotate(){const item=this.selection();if(!item)return;const next={...item,rotation:angle(item.rotation+90)};if(!fitItem(next,this.bounds)){this.toast('旋转后超出户型范围，请缩小设施。',true);return;}this.change(()=>Object.assign(item,next));}
   duplicate(){const item=this.selection();if(!item||this.document.items.length>=200)return;const next={...item,id:crypto.randomUUID(),x:item.x+.25,z:item.z+.25};fitItem(next,this.bounds);this.change(()=>{this.document.items.push(next);this.selected=next.id;});}
   remove(){if(this.selection())this.change(()=>{this.document.items=this.document.items.filter(item=>item.id!==this.selected);this.selected=null;});}
-  undo(redo=false){const from=redo?this.future:this.history,to=redo?this.history:this.future;if(!from.length)return;to.push(JSON.parse(content(this.document)));Object.assign(this.document,from.pop());this.selected=null;this.pending=null;this.changed();}
+  undo(redo=false){
+    const from=redo?this.future:this.history,to=redo?this.history:this.future;if(!from.length)return;
+    to.push(JSON.parse(content(this.document)));Object.assign(this.document,from.pop());
+    if(!this.selection())this.selected=null;this.pending=null;this.changed();
+  }
   snap(item){
     if(!$('furnish-snap').checked)return;
     item.x=Math.round(item.x*10)/10;item.z=Math.round(item.z*10)/10;

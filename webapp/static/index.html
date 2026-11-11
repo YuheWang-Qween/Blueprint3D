@@ -7,6 +7,7 @@
   <title>Blueprint3D · 户型建模工作台</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/furnishing.css">
+  <link rel="stylesheet" href="/static/decoration.css">
 </head>
 <body>
   <section id="auth-screen" class="auth-screen" aria-label="账户登录">
@@ -81,19 +82,38 @@
             <button id="tab-edit" role="tab" aria-selected="false" aria-controls="edit-view" data-view="edit">校正平面</button>
             <button id="tab-image" role="tab" aria-selected="false" aria-controls="image-view" data-view="image">原始图纸</button>
           </div>
-          <div class="view-actions" id="view-actions"><button id="view-top" type="button">俯视</button><button id="view-reset" type="button">复位视角</button><label class="check-label"><input id="cutaway" type="checkbox">半墙查看</label></div>
+          <div class="view-actions" id="view-actions"><button id="decorate-toggle" type="button" aria-pressed="false" disabled>进入精装修</button><button id="walk-toggle" type="button" aria-pressed="false" disabled>室内查看</button><button id="view-top" type="button">俯视</button><button id="view-reset" type="button">复位视角</button><label class="check-label"><input id="cutaway" type="checkbox">半墙查看</label></div>
         </div>
         <section id="model-view" class="view-panel" role="tabpanel" aria-labelledby="tab-model">
-          <div id="viewer" class="viewer"></div>
-          <div class="canvas-help">拖动旋转 · 滚轮缩放 · 右键平移</div>
-          <div id="viewer-error" class="viewer-message" role="alert" hidden></div>
+          <div id="model-stage" class="model-stage">
+            <div id="viewer" class="viewer"></div>
+            <div id="model-help" class="canvas-help">拖动旋转 · 滚轮缩放 · 点击家具精装修</div>
+            <div id="viewer-error" class="viewer-message" role="alert" hidden></div>
+            <div id="walk-overlay" class="walk-overlay" hidden><span>室内视角 · 拖动环顾</span><button id="walk-exit">退出室内</button></div>
+            <div id="walk-pad" class="walk-pad" role="group" aria-label="室内移动" hidden><button data-walk="w" aria-label="向前走">↑</button><button data-walk="a" aria-label="向左走">←</button><button data-walk="s" aria-label="向后走">↓</button><button data-walk="d" aria-label="向右走">→</button></div>
+          </div>
+          <aside id="decorate-panel" class="decorate-panel" aria-label="精装修属性" hidden>
+            <div class="decorate-heading"><div><h2>精装修</h2><p>选一件家具，试试不同搭配。</p></div><button id="decorate-close" aria-label="关闭精装修面板">×</button></div>
+            <div id="decorate-status" class="decorate-status" role="status" aria-live="polite">已保存</div>
+            <label class="decorate-picker-label" for="decorate-picker">当前家具</label><select id="decorate-picker" aria-label="当前家具"><option value="">在 3D 中点击，或从列表选择</option></select>
+            <p id="decorate-empty" class="decorate-empty">点击模型中的沙发、床或桌椅，选择款式、材质和颜色。</p>
+            <button id="decorate-go-plan" type="button">回到平面布置</button>
+            <div id="decorate-properties" hidden>
+              <div class="decorate-object"><div><h3 id="decorate-name"></h3><span id="decorate-dimensions"></span></div><button id="decorate-focus">近看家具</button></div>
+              <section><h3>款式</h3><div id="decorate-variants" class="decorate-variants"></div><p class="decorate-footprint-note">保留当前占地尺寸；需要改尺寸时返回平面布置。</p></section>
+              <section><h3>材质</h3><div id="decorate-materials" class="decorate-materials"></div></section>
+              <section><h3>主体颜色</h3><div id="decorate-colors" class="decorate-colors"></div><label class="decorate-custom-color">自选颜色<input id="decorate-color" type="color" value="#99ab96"></label></section>
+              <button id="decorate-reset" class="decorate-reset">恢复基础外观</button>
+            </div>
+            <div class="decorate-actions"><div><button id="decorate-undo" disabled>撤销</button><button id="decorate-redo" disabled>重做</button><button id="decorate-reload" hidden>重新读取</button></div><button id="decorate-save" class="primary">保存精装修</button><button id="decorate-export">下载精装修 GLB</button><button id="decorate-backup" hidden>导出本机方案备份</button></div>
+          </aside>
         </section>
         <section id="furnish-view" class="furnish-panel" role="tabpanel" aria-labelledby="tab-furnish" hidden>
           <div id="furnish-empty" class="furnish-empty"><strong>在自己的户型里试着布置</strong><p id="furnish-empty-text">生成模型后，即可放入床、沙发、橱柜和卫浴设施。</p><button id="furnish-start" type="button" class="primary">选择示例户型开始</button></div>
           <div id="furnish-workspace" class="furnish-workspace" hidden>
             <div class="furnish-toolbar">
               <div class="layout-summary"><strong id="furnish-count">0 件设施</strong><span id="furnish-status" role="status" aria-live="polite">已保存</span></div>
-              <div class="layout-command-group"><button id="furnish-undo" title="撤销（⌘/Ctrl Z）" disabled>撤销</button><button id="furnish-redo" title="重做（⌘/Ctrl Shift Z）" disabled>重做</button><button id="furnish-reload" hidden>重新读取</button><button id="furnish-save" class="primary">保存方案</button><button id="furnish-to-3d">查看 3D</button></div>
+              <div class="layout-command-group"><button id="furnish-undo" title="撤销（⌘/Ctrl Z）" disabled>撤销</button><button id="furnish-redo" title="重做（⌘/Ctrl Shift Z）" disabled>重做</button><button id="furnish-reload" hidden>重新读取</button><button id="furnish-save" class="primary">保存方案</button><button id="furnish-to-3d">进入 3D 精装修</button></div>
             </div>
             <aside class="furniture-library" aria-label="家具设施库">
               <div class="furnish-section-heading"><h2>家具与设施</h2><span>20 种</span></div>

@@ -10,8 +10,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CATALOG = {item['id']: item for item in json.loads(
-    (Path(__file__).parent / 'static/furniture-catalog.json').read_text())}
+STATIC = Path(__file__).parent / 'static'
+CATALOG = {item['id']: item for item in json.loads((STATIC / 'furniture-catalog.json').read_text())}
+MATERIALS = json.loads((STATIC / 'material-profiles.json').read_text())
+PRIMITIVES = json.loads((STATIC / 'furniture-geometry.json').read_text())
 FLOORS = {'original': None, 'oak': '#c8ad82', 'tile': '#deded3', 'stone': '#abb9c1'}
 WALLS = {'original': None, 'ivory': '#eee9dc', 'white': '#f4f5ef', 'sage': '#cbd4c4'}
 
@@ -27,11 +29,18 @@ class Furniture(BaseModel):
     height: float = Field(ge=.05, le=4.5, allow_inf_nan=False)
     rotation: float = Field(ge=0, lt=360, allow_inf_nan=False)
     color: str = Field(pattern=r'^#[0-9a-fA-F]{6}$')
+    variant: str = 'standard'
+    material: str = 'default'
 
     @model_validator(mode='after')
     def known_type(self):
         if self.type not in CATALOG:
             raise ValueError('未知设施类型')
+        definition = CATALOG[self.type]
+        if self.variant not in ['standard'] + [v['id'] for v in definition.get('variants', [])]:
+            raise ValueError('该家具不支持这个款式')
+        if self.material not in ['default'] + definition.get('materials', []):
+            raise ValueError('该家具不支持这个材质')
         return self
 
 
@@ -74,13 +83,21 @@ def export_glb(directory, layout):
     """Export an independent furnished scene; leave the generated shell untouched."""
     import numpy as np
     import trimesh
+    from PIL import Image
 
     scene = trimesh.load(directory / 'model.glb', force='scene')
 
-    def material(color):
+    def material(color, profile='default', uv=None):
         rgba = [int(color[i:i + 2], 16) for i in (1, 3, 5)] + [255]
-        return trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
-            baseColorFactor=rgba, metallicFactor=0, roughnessFactor=.8, doubleSided=True))
+        config = MATERIALS[profile]
+        texture = None
+        if config['texture'] and uv is not None:
+            uv = uv * config.get('repeat', 1)
+            with Image.open(STATIC / 'materials' / config['texture']) as source:
+                texture = source.copy()
+        return trimesh.visual.TextureVisuals(uv=uv, material=trimesh.visual.material.PBRMaterial(
+            baseColorFactor=rgba, baseColorTexture=texture, metallicFactor=config['metalness'],
+            roughnessFactor=config['roughness'], doubleSided=True))
 
     for name, mesh in scene.geometry.items():
         kind = 'floor' if name.startswith('floor') else 'wall' if name.startswith('wall') else None
@@ -92,17 +109,22 @@ def export_glb(directory, layout):
         # Right-handed rotation about Y is opposite the plan's clockwise angle.
         transform = trimesh.transformations.rotation_matrix(-math.radians(item['rotation']), [0, 1, 0])
         transform[:3, 3] = [item['x'], 0, item['z']]
-        for index, part in enumerate(CATALOG[item['type']]['parts']):
+        definition = CATALOG[item['type']]
+        variant = next((v for v in definition.get('variants', []) if v['id'] == item.get('variant')), None)
+        for index, part in enumerate(variant['parts'] if variant else definition['parts']):
             size = np.asarray(part['size']) * scale
-            if part['shape'] == 'cylinder':
-                mesh = trimesh.creation.cylinder(radius=1, height=1, sections=24)
-                mesh.apply_transform(trimesh.transformations.rotation_matrix(math.pi / 2, [1, 0, 0]))
-                mesh.apply_scale([size[0] / 2, size[1], size[2] / 2])
-            else:
-                mesh = trimesh.creation.box(extents=size)
+            primitive = PRIMITIVES[part['shape']]
+            vertices = np.asarray(primitive['positions'], dtype=float).reshape(-1, 3)
+            uv = np.asarray(primitive['uvs'], dtype=float).reshape(-1, 2)
+            normals = np.asarray(primitive['normals']).reshape(-1, 3) / size
+            normals /= np.linalg.norm(normals, axis=1)[:, None]
+            mesh = trimesh.Trimesh(vertices=vertices * size, faces=np.arange(len(vertices)).reshape(-1, 3),
+                                   vertex_normals=normals, process=False)
             mesh.apply_translation(np.asarray(part['position']) * scale)
             mesh.apply_transform(transform)
-            mesh.visual = material(item['color'] if part['color'] == 'body' else part['color'])
+            body = part['color'] == 'body'
+            mesh.visual = material(item['color'] if body else part['color'],
+                                   item.get('material', 'default') if body else 'default', uv)
             name = f"furniture_{item['id']}_{index}"
             scene.add_geometry(mesh, node_name=name, geom_name=name)
     return scene.export(file_type='glb')

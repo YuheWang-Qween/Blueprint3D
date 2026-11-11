@@ -5,8 +5,10 @@ This project is a comprehensive solution for converting 2D floor plan images int
 ## 浏览器工作台 / Web studio
 
 现在可以在浏览器中完成：注册登录 → 上传户型图 → 设置尺寸 → 生成 3D →
-校正墙线和门洞 → 布置家具与设施 → 下载模型。空间布置提供 20 种简模，支持平面拖放、
+校正墙线和门洞 → 布置家具与设施 → 3D 精装修 → 下载模型。空间布置提供 20 种简模，支持平面拖放、
 旋转改尺寸、撤销重做、全屋饰面换色、3D 同步和方案自动保存，可导出含设施的 GLB 与方案 JSON。
+在 3D 中点选家具，可更换款式、主体颜色和材质；例如沙发支持直排、圆润双座、左右贵妃款，
+以及织物、皮革和绒面。室内视角支持拖动环顾、键盘或屏幕方向键移动，检查不同搭配。
 保留旋转、俯视、半墙查看、个人模型历史、校正草稿恢复和原始 GLB / OBJ 模型包。
 桌面 Tkinter 界面继续保留，两端账户独立。
 
@@ -32,7 +34,7 @@ npm --prefix webapp run build
 # Web 测试
 .venv/bin/python -m pip install httpx
 .venv/bin/python -m unittest discover -s tests -p 'test_web.py' -v
-node --test webapp/furniture.test.js
+node --test webapp/*.test.js
 ```
 
 ## Pipeline Visualization

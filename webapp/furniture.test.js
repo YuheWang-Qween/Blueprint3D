@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {extent,fitItem,contains,meshBounds,validateLayout} from './static/furniture.js';
+import {extent,fitItem,contains,meshBounds,validateLayout,appearance,partsFor} from './static/furniture.js';
 
 const catalog=JSON.parse(readFileSync(new URL('./static/furniture-catalog.json',import.meta.url)));
 const bounds={minX:0,minZ:-8,maxX:10,maxZ:0};
@@ -20,11 +20,21 @@ test('model bounds map Z-up mesh vertices to the original Y-up GLB frame',()=>{
 });
 test('imports reject unknown types, oversized scenes and non-finite coordinates',()=>{
   const valid={version:1,items:[bed],finishes:{floor:'oak',wall:'ivory'}};
-  assert.deepEqual(validateLayout(valid,catalog,bounds).items,[bed]);
+  assert.deepEqual(validateLayout(valid,catalog,bounds).items,[{...bed,variant:'standard',material:'default'}]);
   for(const change of [{x:NaN},{height:Infinity},{width:0},{color:'red'},{type:'script'},{x:10},{id:'../'}]){
     assert.throws(()=>validateLayout({...valid,items:[{...bed,...change}]},catalog,bounds));
   }
   assert.throws(()=>validateLayout({...valid,items:[bed,bed]},catalog,bounds));
   assert.throws(()=>validateLayout({...valid,items:Array(201).fill(bed)},catalog,bounds));
   assert.throws(()=>validateLayout({...valid,finishes:{floor:'toString',wall:'ivory'}},catalog,bounds));
+});
+
+test('appearance changes retain the rough-layout placement and reject unsupported combinations',()=>{
+  const sofa={...bed,type:'sofa'},definition=catalog.find(c=>c.id==='sofa');
+  const changed=appearance(sofa,definition,{variant:'chaise-left',material:'leather',color:'#a56e46'});
+  for(const key of ['id','type','x','z','width','depth','height','rotation'])assert.equal(changed[key],sofa[key]);
+  assert.notDeepEqual(partsFor(definition,changed.variant),definition.parts);
+  assert.throws(()=>appearance(sofa,definition,{variant:'oval'}));
+  assert.throws(()=>appearance(sofa,definition,{material:'ceramic'}));
+  assert.equal(sofa.variant,undefined);
 });

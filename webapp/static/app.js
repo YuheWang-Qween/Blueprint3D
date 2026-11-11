@@ -1,5 +1,6 @@
 import {ModelViewer} from './viewer.bundle.js';
 import {FurnishingEditor} from './furnishing-editor.js';
+import {DecorationPanel} from './decoration.js';
 const $=id=>document.getElementById(id);
 const state={user:null,register:false,file:null,active:null,jobs:[],viewer:null,plan:null,undo:[],tool:'wall',start:null,dirty:false,poll:null,loadId:0};
 let toastTimer,thumbnailUrl;
@@ -46,7 +47,7 @@ async function enter(user){
   state.user=user;$('account-name').textContent=user.username;$('auth-screen').hidden=true;$('studio').hidden=false;
   $('auth-error').textContent='';
   try{
-    if(!state.viewer)state.viewer=new ModelViewer($('viewer'));
+    if(!state.viewer)state.viewer=new ModelViewer($('viewer'),{onSelect:id=>decoration.select(id),onNavigation:active=>decoration.navigationChanged(active)});
     await showSample();
   }catch(e){viewerError('三维显示不可用，请确认浏览器支持 WebGL。模型文件仍可下载。');}
   const info=await api('/api/me');
@@ -142,14 +143,17 @@ function setView(view){
   for(const name of ['model','furnish','edit','image']){$(name+'-view').hidden=name!==view;$('tab-'+name).setAttribute('aria-selected',String(name===view));}
   document.querySelector('.work-layout').classList.toggle('furnish-focus',view==='furnish');
   $('view-actions').hidden=view!=='model';
+  decoration.setVisible(view==='model');
   if(view==='model')state.viewer?.resize();
   if(view==='edit')prepareEditor();
   if(view==='furnish')furnishing.fit();
   if(innerWidth<=760&&(view==='furnish'||wasFurnishing))document.querySelector('.drawing-heading').scrollIntoView({block:'start'});
 }
 const furnishing=new FurnishingEditor({api,viewer:()=>state.viewer,toast,showModel:()=>{
-  setView('model');$('cutaway').checked=true;state.viewer?.cut(true);
+  setView('model');$('cutaway').checked=true;state.viewer?.cut(true);decoration.setMode(true);
 }});
+const decoration=new DecorationPanel({editor:furnishing,viewer:()=>state.viewer,toast,showPlan:()=>setView('furnish')});
+furnishing.onUpdate=()=>decoration.refresh();furnishing.onStatus=(message,error)=>decoration.status(message,error);furnishing.onReset=()=>decoration.reset();
 $('furnish-start').addEventListener('click',()=>{setView('model');$('load-sample').click();$('generate').scrollIntoView({block:'center'});});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $('view-top').addEventListener('click',()=>state.viewer?.top());$('view-reset').addEventListener('click',()=>state.viewer?.reset());
