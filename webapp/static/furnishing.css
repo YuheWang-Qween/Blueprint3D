@@ -1,0 +1,44 @@
+/* Blueprint drafting desk: a large drawing, a compact library and an inspector. */
+.work-layout.furnish-focus{grid-template-columns:minmax(0,1fr)}
+.furnish-focus>.sidebar{display:none}
+.furnish-focus .main-workspace{padding:20px 24px}
+.furnish-panel{border:1px solid var(--line);border-top:0;min-width:0;background:#fff}
+.furnish-empty{min-height:440px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px;text-align:center}
+.furnish-empty strong{font-size:21px;font-weight:500}.furnish-empty p{color:#6d8293;max-width:360px}
+.furnish-workspace{display:grid;grid-template-columns:184px minmax(260px,1fr) 226px;grid-template-rows:auto minmax(520px,calc(100dvh - 310px));max-height:1000px}
+.furnish-toolbar{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:56px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fff}
+.layout-summary{display:flex;align-items:center;gap:14px;font-size:12px;min-width:0}.layout-summary strong{white-space:nowrap;font-weight:600}.layout-summary span{color:#758575;font-size:11px;overflow-wrap:anywhere}
+.layout-summary span.save-error{color:var(--error)}.layout-command-group{display:flex;gap:6px;flex-shrink:0}.layout-command-group button{padding:6px 11px;font-size:12px;min-height:32px}
+.furniture-library{padding:17px 12px;border-right:1px solid var(--line);overflow:auto;min-height:0}
+.furnish-section-heading{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:12px}.furnish-section-heading h2{font-size:13px}.furnish-section-heading>span{font-size:10px;color:#81919d}
+.category-label{font-size:11px;color:#758694;margin-bottom:12px}.category-label select{height:35px;padding:5px 8px;font-size:12px}
+.furniture-catalog{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.furniture-card{padding:7px 3px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;background:#fbfcfc;border-color:#dde4e8;border-radius:4px;user-select:none}
+.furniture-card canvas{width:58px;height:50px;pointer-events:none}.furniture-card strong{font-size:11px;font-weight:500}.furniture-card>span{font-size:9px;color:#89959c;white-space:nowrap}
+.furniture-card[aria-pressed=true]{border-color:#be882b;background:#fff4d9;box-shadow:inset 0 0 0 1px #be882b}
+.library-help{font-size:10px;color:#7c8d9a;line-height:1.8;margin-top:16px}
+.furnish-drawing{min-width:0;min-height:0;display:flex;flex-direction:column;background:#f5f6f3;overflow:hidden}
+.plan-controls{display:flex;align-items:center;gap:16px;padding:9px 13px;border-bottom:1px solid #dde3df;background:#f9faf8}.plan-controls>div{margin-left:auto;display:flex;gap:4px}.plan-controls button{padding:4px 9px;min-width:29px;font-size:11px;background:#fff}
+.furnish-stage{position:relative;flex:1;min-height:0;overflow:hidden}.furnish-stage canvas{display:block;width:100%;height:100%;touch-action:none;outline-offset:-3px}
+.furnish-stage canvas:focus-visible{outline:2px solid var(--brass)}
+.placement-prompt{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;font-size:12px;padding:8px 14px;white-space:nowrap;pointer-events:none;border-radius:4px}
+.plan-status{display:flex;justify-content:space-between;gap:12px;padding:9px 13px;background:#fafbf9;border-top:1px solid #dde3df;font-size:10px;color:#75858c}.plan-status>span:last-child{white-space:nowrap}
+.furnish-inspector{padding:17px 14px;border-left:1px solid var(--line);overflow:auto;min-height:0;background:#fff}
+.furnish-inspector section+section{border-top:1px solid var(--line);margin-top:20px;padding-top:17px}
+.muted-copy{font-size:12px;color:#89959c;line-height:1.8}.furniture-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.furniture-fields label,.finish-properties label{font-size:11px;color:#6f8290}.furniture-fields input{height:35px!important;padding:6px 8px!important;font-size:12px}
+.furniture-color-label{flex-direction:row;justify-content:space-between;align-items:center;font-size:11px;margin-top:12px;color:#6f8290}
+.furniture-color-label input[type=color]{width:55px;height:28px;min-height:0;padding:2px}
+.apply-properties{width:100%;font-size:11px;margin-top:12px;padding:6px 8px}.item-actions{display:flex;gap:5px;margin-top:9px}.item-actions button{flex:1;padding:6px 3px;font-size:11px}
+.finish-properties label+label{margin-top:10px}.finish-properties select{font-size:12px;height:36px;padding:6px 8px}
+.placed-items{display:grid;gap:4px;max-height:155px;overflow:auto}.placed-item{padding:5px 7px;display:flex;justify-content:space-between;gap:6px;font-size:11px;border:1px solid transparent;background:#f6f8f9;text-align:left}.placed-item span{font-size:10px;color:#89959c}.placed-item[aria-pressed=true]{background:#fff4d9;border-color:#d3b579}
+.furnish-export .primary{width:100%;font-size:12px;min-height:37px;padding:8px 6px}.furnish-export>div{display:flex;gap:6px;margin-top:9px}.furnish-export>div button{flex:1;font-size:11px;padding:6px 3px}.furnish-export p{font-size:10px;color:#89959c;line-height:1.8;margin-top:12px}
+@media(max-width:1080px){.furnish-workspace{grid-template-columns:160px minmax(260px,1fr) 200px}.furnish-focus .main-workspace{padding:18px 15px}.furnish-inspector{padding:15px 11px}.furniture-library{padding:15px 9px}}
+@media(max-width:760px){
+  .view-tabs{width:100%;gap:0;justify-content:space-between}.view-tabs button{font-size:12px}
+  .furnish-focus .main-workspace{padding:16px 12px}.furnish-focus .drawing-footer{display:none}
+  .furnish-workspace{display:flex;flex-direction:column;max-height:none}.furnish-toolbar{flex-wrap:wrap;gap:8px;padding:10px;order:0}.layout-summary{width:100%;gap:10px}.layout-command-group{flex-wrap:wrap;gap:5px;width:100%}.layout-command-group button{flex:1;font-size:11px;padding:5px;white-space:nowrap}
+  .furniture-library{order:1;padding:10px;border:0;border-bottom:1px solid var(--line);overflow:visible}.furniture-library .furnish-section-heading{display:none}.category-label{flex-direction:row;align-items:center;margin:0 0 8px;gap:12px}.category-label select{width:135px;height:30px}.furniture-catalog{display:flex;overflow-x:auto;padding:2px 1px 7px;gap:7px}.furniture-card{min-width:74px;flex:0 0 74px}.furniture-card canvas{height:40px;width:50px}.library-help{margin-top:2px}
+  .furnish-drawing{order:2;min-height:420px;height:420px}.plan-controls{gap:12px;padding:8px 10px}.plan-status{font-size:9px;padding:8px 9px}.placement-prompt{font-size:11px;padding:7px 10px}
+  .furnish-inspector{order:3;overflow:visible;border:0;border-top:1px solid var(--line);padding:16px;display:grid;grid-template-columns:1fr;gap:0}.furnish-inspector section+section{margin-top:16px;padding-top:14px}.furniture-fields{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.furnish-export>div button,.item-actions button{min-height:36px}.placed-items{max-height:140px}.furnish-empty{min-height:400px;padding:25px}
+}

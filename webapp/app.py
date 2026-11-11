@@ -16,12 +16,13 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from .store import Store
+from .furnishing import Layout, validate_bounds, export_glb
 
 ROOT=Path(__file__).resolve().parents[1]
 STATIC=Path(__file__).parent/'static'
@@ -274,6 +275,36 @@ def create_app(data_dir=None):
     @app.get('/api/jobs/{jid}')
     def detail(jid:str,request:Request):
         return own_job(request,jid)
+
+    def completed_job(request, jid):
+        job = own_job(request, jid)
+        if job['status'] != 'done':
+            raise HTTPException(409, '请等待户型模型生成完成后再布置。')
+        return job
+
+    @app.get('/api/jobs/{jid}/layout')
+    def get_layout(jid: str, request: Request):
+        completed_job(request, jid)
+        return store.layout(jid)
+
+    @app.put('/api/jobs/{jid}/layout')
+    def put_layout(jid: str, data: Layout, request: Request):
+        completed_job(request, jid)
+        try:
+            validate_bounds(data, store.directory / 'jobs' / jid)
+        except ValueError as error:
+            raise HTTPException(422, str(error))
+        try:
+            return store.save_layout(jid, data.model_dump())
+        except ValueError as error:
+            raise HTTPException(409, str(error))
+
+    @app.get('/api/jobs/{jid}/furnished.glb')
+    def furnished(jid: str, request: Request):
+        completed_job(request, jid)
+        content = export_glb(store.directory / 'jobs' / jid, store.layout(jid))
+        return Response(content, media_type='model/gltf-binary',
+                        headers={'Content-Disposition': 'attachment; filename="furnished.glb"'})
 
     @app.post('/api/jobs/{jid}/revise',status_code=202)
     def revise(jid:str,data:Revision,request:Request):

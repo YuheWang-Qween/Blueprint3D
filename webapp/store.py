@@ -20,6 +20,7 @@ class Store:
                 CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL, iterations INTEGER NOT NULL);
                 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL, created REAL NOT NULL, params TEXT NOT NULL, result TEXT, error TEXT);
+                CREATE TABLE IF NOT EXISTS layouts (job_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, document TEXT NOT NULL, updated REAL NOT NULL);
             ''')
             db.execute("UPDATE jobs SET status='error', error='服务重启中断了任务，请重新生成。' WHERE status IN ('queued','running')")
 
@@ -106,3 +107,23 @@ class Store:
     def update_job(self,jid,status,result=None,error=None):
         with self.connect() as db:
             db.execute('UPDATE jobs SET status=?,result=?,error=? WHERE id=?',(status,json.dumps(result) if result else None,error,jid))
+
+    def layout(self, jid):
+        # Callers must have verified job ownership before accessing this document.
+        with self.connect() as db:
+            row = db.execute('SELECT document FROM layouts WHERE job_id=?', (jid,)).fetchone()
+        return json.loads(row['document']) if row else {
+            'version': 1, 'revision': 0, 'items': [], 'finishes': {'floor': 'original', 'wall': 'original'}}
+
+    def save_layout(self, jid, document):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT revision FROM layouts WHERE job_id=?', (jid,)).fetchone()
+            current = row['revision'] if row else 0
+            if document['revision'] != current:
+                raise ValueError('方案已在另一页面更新。本机草稿仍保留，请导出备份后重新读取方案。')
+            document = {**document, 'revision': current + 1}
+            db.execute('INSERT INTO layouts VALUES (?,?,?,?) ON CONFLICT(job_id) DO UPDATE SET '
+                       'revision=excluded.revision,document=excluded.document,updated=excluded.updated',
+                       (jid, current + 1, json.dumps(document, ensure_ascii=False, allow_nan=False), time.time()))
+        return document

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {FLOORS,WALLS,radians} from './static/furniture.js';
 
 export class ModelViewer {
   constructor(host) {
@@ -28,6 +29,8 @@ export class ModelViewer {
     this.grid.position.y=-.15;this.scene.add(this.grid);
     this.plane=new THREE.Plane(new THREE.Vector3(0,-1,0),1.4);
     this.loadId=0;
+    this.furniture=new THREE.Group();this.scene.add(this.furniture);
+    this.layout=null;this.catalog=[];
     new ResizeObserver(()=>this.resize()).observe(host);
     this.resize();
   }
@@ -56,12 +59,15 @@ export class ModelViewer {
     const bounds=new THREE.Box3().setFromObject(this.model);
     const center=bounds.getCenter(new THREE.Vector3());
     this.model.position.x-=center.x;this.model.position.z-=center.z;
+    this.furniture.position.set(-center.x,0,-center.z);
+    this.model.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.userData.baseColor=m.color?.clone();});
     const size=bounds.getSize(new THREE.Vector3());
     this.span=Math.max(size.x,size.z,size.y,2);
     this.radius=size.length()/2+size.y*.1;
     this.target=new THREE.Vector3(0,size.y*.26,0);
     this.plane.constant=size.y*.5;
     this.cut(false);this.reset();
+    this.setLayout(this.layout,this.catalog);
     this.host.dataset.ready='true';
   }
   reset(){
@@ -81,6 +87,35 @@ export class ModelViewer {
   }
   cut(enabled){
     this.model?.traverse(o=>{if(o.material){for(const m of [].concat(o.material)){m.clippingPlanes=enabled?[this.plane]:[];m.needsUpdate=true;}}});
+    this.render();
+  }
+  setLayout(layout,catalog=[]){
+    this.layout=layout;this.catalog=catalog;
+    for(const child of [...this.furniture.children]){
+      child.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});this.furniture.remove(child);
+    }
+    this.model?.traverse(o=>{
+      if(!o.material)return;
+      const kind=o.name.startsWith('floor')?'floor':o.name.startsWith('wall')?'wall':null;
+      const color=kind==='floor'?FLOORS[layout?.finishes.floor]:kind==='wall'?WALLS[layout?.finishes.wall]:null;
+      for(const m of [].concat(o.material)){
+        if(color)m.color.set(color);else if(m.userData.baseColor)m.color.copy(m.userData.baseColor);
+      }
+    });
+    for(const item of layout?.items||[]){
+      const definition=catalog.find(c=>c.id===item.type);if(!definition)continue;
+      const group=new THREE.Group();group.name='furniture_'+item.id;
+      group.position.set(item.x,0,item.z);group.rotation.y=-radians(item.rotation);
+      for(const part of definition.parts){
+        const [w,h,d]=part.size.map((v,i)=>v*[item.width,item.height,item.depth][i]);
+        const geometry=part.shape==='cylinder'?new THREE.CylinderGeometry(.5,.5,1,24):new THREE.BoxGeometry(1,1,1);
+        geometry.scale(w,h,d);
+        const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:part.color==='body'?item.color:part.color,roughness:.8}));
+        mesh.position.fromArray(part.position.map((v,i)=>v*[item.width,item.height,item.depth][i]));group.add(mesh);
+      }
+      this.furniture.add(group);
+    }
+    this.host.dataset.furnitureCount=String(layout?.items.length||0);
     this.render();
   }
 }

@@ -1,4 +1,5 @@
 import {ModelViewer} from './viewer.bundle.js';
+import {FurnishingEditor} from './furnishing-editor.js';
 const $=id=>document.getElementById(id);
 const state={user:null,register:false,file:null,active:null,jobs:[],viewer:null,plan:null,undo:[],tool:'wall',start:null,dirty:false,poll:null,loadId:0};
 let toastTimer,thumbnailUrl;
@@ -9,12 +10,13 @@ function toast(message,error=false){$('toast').textContent=message;$('toast').cl
 async function api(path,options={}){
   const response=await fetch(path,{credentials:'same-origin',...options,headers:{'X-Blueprint-Request':'1',...(options.body && !(options.body instanceof FormData)?{'Content-Type':'application/json'}:{}),...options.headers}});
   const data=await response.json().catch(()=>({detail:'服务暂时不可用，请稍后重试。'}));
-  if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'请检查输入内容后重试。');
+  if(!response.ok){const error=Error(typeof data.detail==='string'?data.detail:'请检查输入内容后重试。');error.status=response.status;throw error;}
   return data;
 }
 function parameters(){return {width_m:Number($('width-m').value),wall_height:Number($('wall-height').value),door_height:Number($('door-height').value),wall_thickness:Number($('wall-thickness').value),engine:$('engine').value};}
 function setParameters(p){for(const [key,id] of Object.entries({width_m:'width-m',wall_height:'wall-height',door_height:'door-height',wall_thickness:'wall-thickness',engine:'engine'}))if(p[key]!==undefined)$(id).value=p[key];}
 function showAuth(){
+  furnishing.reset();state.loadId++;
   state.user=null;state.active=null;state.plan=null;state.jobs=[];clearTimeout(state.poll);
   $('studio').hidden=true;$('auth-screen').hidden=false;$('password').value='';$('confirm-password').value='';
   state.file=null;$('plan-file').value='';$('upload-title').textContent='上传户型图';$('upload-meta').textContent='PNG / JPG / WebP · 最大 12 MB';
@@ -58,6 +60,7 @@ async function enter(user){
 }
 function viewerError(message){$('viewer-error').hidden=false;$('viewer-error').textContent=message;}
 async function showSample(){
+  furnishing.reset();
   state.active=null;state.plan=null;$('drawing-title').textContent='示例户型';$('status-badge').textContent='可旋转查看';$('status-badge').classList.remove('error');
   $('result-note').textContent='示例已按原图核对，尺寸为估算值。上传你自己的图纸开始建模。';
   $('result-meta').textContent='墙高 2.8 米 · 6 处平开门 · 1 处推拉隔断';
@@ -111,6 +114,7 @@ function renderHistory(){
   }
 }
 async function selectJob(job){
+  furnishing.reset();
   const loadId=++state.loadId;state.active=job;state.plan=null;state.undo=[];state.start=null;state.dirty=false;
   saved('blueprint3d.active.'+state.user.username,job.id);setParameters(job.params);
   $('drawing-title').textContent=job.name;$('source-image').src='/api/jobs/'+job.id+'/files/input.png';
@@ -127,16 +131,26 @@ async function selectJob(job){
     $('result-meta').textContent=`总宽 ${job.params.width_m} 米 · 墙高 ${job.params.wall_height} 米 · ${result.triangles.toLocaleString()} 个三角面`;
     $('download-glb').href='/api/jobs/'+job.id+'/files/model.glb';$('download-zip').href='/api/jobs/'+job.id+'/files/model.zip';
     $('cutaway').checked=false;
+    const layoutReady=furnishing.load(job,state.user.username);
     try{await state.viewer?.load('/api/jobs/'+job.id+'/files/model.glb');if(loadId===state.loadId)$('viewer-error').hidden=true;}
     catch(e){viewerError(e.message);}
+    await layoutReady;
   }
 }
 function setView(view){
-  for(const name of ['model','edit','image']){$(name+'-view').hidden=name!==view;$('tab-'+name).setAttribute('aria-selected',String(name===view));}
+  const wasFurnishing=document.querySelector('.work-layout').classList.contains('furnish-focus');
+  for(const name of ['model','furnish','edit','image']){$(name+'-view').hidden=name!==view;$('tab-'+name).setAttribute('aria-selected',String(name===view));}
+  document.querySelector('.work-layout').classList.toggle('furnish-focus',view==='furnish');
   $('view-actions').hidden=view!=='model';
   if(view==='model')state.viewer?.resize();
   if(view==='edit')prepareEditor();
+  if(view==='furnish')furnishing.fit();
+  if(innerWidth<=760&&(view==='furnish'||wasFurnishing))document.querySelector('.drawing-heading').scrollIntoView({block:'start'});
 }
+const furnishing=new FurnishingEditor({api,viewer:()=>state.viewer,toast,showModel:()=>{
+  setView('model');$('cutaway').checked=true;state.viewer?.cut(true);
+}});
+$('furnish-start').addEventListener('click',()=>{setView('model');$('load-sample').click();$('generate').scrollIntoView({block:'center'});});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $('view-top').addEventListener('click',()=>state.viewer?.top());$('view-reset').addEventListener('click',()=>state.viewer?.reset());
 $('cutaway').addEventListener('change',e=>state.viewer?.cut(e.target.checked));

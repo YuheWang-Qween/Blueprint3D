@@ -6,6 +6,7 @@
 - 主要依赖：PyTorch、numpy、OpenCV、Pillow、matplotlib、pyvista、scikit-image、albumentations、scipy、scikit-learn 等
 - Web 依赖：`requirements.txt` → `requirements-web.txt`；原神经网络依赖按 README / lock 文件安装。
 - 前端：`webapp/package.json` / `package-lock.json`；修改 viewer.js 后用 npm 重建并提交 static/viewer.bundle.js，保留 Three.js 许可证。
+- 家具布置：`static/furniture-catalog.json` 同时用于 2D、Three.js 和服务端 GLB；坐标为原始 GLB 的 X/Z 米制坐标，不可存储查看器居中后的坐标。`layouts` 表按模型隔离并做 revision 冲突检查；接口先验证任务归属。
 - Python 使用项目级 `.venv`，扣子构建支持 `PIP_TARGET`。
 
 ## 目录结构
@@ -29,6 +30,7 @@
 - `.coze` 为 `project_type = "web"`，预览已启用；开发和部署运行单个 FastAPI 进程，默认端口 5000。
 - `bash scripts/setup_web.sh` 安装，`bash scripts/start_web.sh` 启动；必须实际在浏览器检查登录、上传、三维显示和下载。
 - Web 测试：安装 httpx 后 `.venv/bin/python -m unittest discover -s tests -p 'test_web.py' -v`；完整测试另需原几何/推理依赖。
+- 布置几何前端测试：`node --test webapp/furniture.test.js`；实际检查平面拖放、3D 同步、刷新恢复、JSON 导入导出和含设施 GLB。
 - 账户、任务与模型写入 `BLUEPRINT_DATA_DIR`（默认 var/web），禁止提交运行数据或权重。生产需要持久磁盘，不能默认容器目录会跨部署保留。
 - 不增加 Uvicorn worker 或多副本；当前任务队列是单服务进程。增强识别仅在依赖、权重与使用授权齐全时启用。
 - GUI 无头验证方法（本沙箱已验证可行）：`xvfb-run -a python3 <脚本>` 跑 Tkinter；`auth.py`/登录窗口仅依赖标准库 + tkinter，可直接测；要测 `create_gui` 完整接线但不想装重型依赖时，用桩模块替身（`Shape.py`/`morpho.py` 提供 `ShapeProcessor()`/`MorphoExtruder()` 空类，`sys.modules` 注入 PIL 替身）复制 extruder.py/auth.py 到临时目录后驱动。

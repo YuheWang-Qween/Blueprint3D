@@ -4,6 +4,7 @@ import json
 import tempfile
 import time
 import unittest
+import copy
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -128,6 +129,75 @@ class WebTests(unittest.TestCase):
                 yield b'x'*(1024*1024)
         response=self.client.post('/api/register',headers=HEADERS,content=chunks())
         self.assertEqual(response.status_code,413)
+
+    def test_furnishing_persists_exports_and_is_owner_scoped(self):
+        import trimesh
+        self.register('furniture_owner')
+        job=self.completed(self.upload().json()['id'])
+        url=f"/api/jobs/{job['id']}/layout"
+        document=self.client.get(url).json()
+        self.assertEqual(document['revision'],0)
+        original=self.client.get(f"/api/jobs/{job['id']}/files/model.glb").content
+        document['items']=[dict(id='bed_1',type='bed',x=3,z=-4,width=1.8,depth=2,height=1.05,rotation=90,color='#91aabd')]
+        document['finishes']={'floor':'oak','wall':'ivory'}
+        response=self.client.put(url,headers=HEADERS,json=document)
+        self.assertEqual(response.status_code,200,response.text)
+        saved=response.json()
+        self.assertEqual(saved['revision'],1)
+        # Existing cookies also access the saved layout through a freshly opened app.
+        with TestClient(create_app(self.temp.name)) as reopened:
+            reopened.cookies.update(self.client.cookies)
+            self.assertEqual(reopened.get(url).json(),saved)
+        exported=self.client.get(f"/api/jobs/{job['id']}/furnished.glb")
+        self.assertEqual(exported.content[:4],b'glTF')
+        scene=trimesh.load(io.BytesIO(exported.content),file_type='glb',force='scene')
+        parts=[scene.geometry[name] for name in scene.geometry if name.startswith('furniture_bed_1_')]
+        self.assertGreaterEqual(len(parts),6)
+        furniture=trimesh.util.concatenate(parts)
+        # In GLB space the 90-degree bed spans 2m on X and 1.8m on Z at the saved center.
+        self.assertAlmostEqual(furniture.bounds[:,0].mean(),3,places=4)
+        self.assertAlmostEqual(furniture.bounds[:,2].mean(),-4,places=4)
+        self.assertAlmostEqual(furniture.extents[0],2,places=4)
+        self.assertAlmostEqual(furniture.extents[2],1.8,places=4)
+        floor=next(mesh for name,mesh in scene.geometry.items() if name.startswith('floor'))
+        self.assertEqual(floor.visual.material.baseColorFactor.tolist()[:3],[200,173,130])
+        self.assertEqual(self.client.get(f"/api/jobs/{job['id']}/files/model.glb").content,original)
+        # A second page cannot silently overwrite a newer layout.
+        stale=self.client.put(url,headers=HEADERS,json=document)
+        self.assertEqual(stale.status_code,409)
+        self.assertEqual(self.client.get(url).json(),saved)
+        saved['items']=[]
+        self.assertEqual(self.client.put(url,headers=HEADERS,json=saved).json()['revision'],2)
+        self.client.post('/api/logout',headers=HEADERS)
+        self.assertEqual(self.client.get(url).status_code,401)
+        self.register('furniture_other')
+        self.assertEqual(self.client.get(url).status_code,404)
+        self.assertEqual(self.client.put(url,headers=HEADERS,json=saved).status_code,404)
+        self.assertEqual(self.client.get(f"/api/jobs/{job['id']}/furnished.glb").status_code,404)
+
+    def test_furnishing_rejects_invalid_documents_without_overwriting(self):
+        self.register()
+        job=self.completed(self.upload().json()['id'])
+        url=f"/api/jobs/{job['id']}/layout"
+        valid={'version':1,'revision':0,'finishes':{'floor':'original','wall':'original'},'items':[
+            dict(id='sofa_1',type='sofa',x=3,z=-4,width=2.4,depth=.9,height=.85,rotation=0,color='#99ab96')]}
+        for key,value in [('type','unknown'),('width',-2),('x',float('nan')),('x',999),('rotation',360),('color','red')]:
+            malformed=copy.deepcopy(valid);malformed['items'][0][key]=value
+            response=self.client.put(url,headers={**HEADERS,'Content-Type':'application/json'},content=json.dumps(malformed))
+            self.assertEqual(response.status_code,422,(key,response.text))
+        for items in [valid['items']*2,valid['items']*201]:
+            self.assertEqual(self.client.put(url,headers=HEADERS,json={**valid,'items':items}).status_code,422)
+        self.assertEqual(self.client.put(url,json=valid).status_code,403)
+        self.assertEqual(self.client.get(url).json()['items'],[])
+
+    def test_furnishing_needs_completed_job(self):
+        self.register()
+        store=self.app.state.store
+        user=store.verify('test_user','test-password-2026')
+        store.add_job('waiting',user['id'],'waiting.png',{})
+        self.assertEqual(self.client.get('/api/jobs/waiting/layout').status_code,409)
+        self.assertEqual(self.client.put('/api/jobs/waiting/layout',headers=HEADERS,json={}).status_code,409)
+        self.assertEqual(self.client.get('/api/jobs/waiting/furnished.glb').status_code,409)
 
 
 if __name__=='__main__':

@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#10243e">
   <title>Blueprint3D · 户型建模工作台</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/furnishing.css">
 </head>
 <body>
   <section id="auth-screen" class="auth-screen" aria-label="账户登录">
@@ -76,6 +77,7 @@
         <div class="view-toolbar">
           <div class="view-tabs" role="tablist" aria-label="图纸视图">
             <button id="tab-model" role="tab" aria-selected="true" aria-controls="model-view" data-view="model">3D 模型</button>
+            <button id="tab-furnish" role="tab" aria-selected="false" aria-controls="furnish-view" data-view="furnish">空间布置</button>
             <button id="tab-edit" role="tab" aria-selected="false" aria-controls="edit-view" data-view="edit">校正平面</button>
             <button id="tab-image" role="tab" aria-selected="false" aria-controls="image-view" data-view="image">原始图纸</button>
           </div>
@@ -85,6 +87,43 @@
           <div id="viewer" class="viewer"></div>
           <div class="canvas-help">拖动旋转 · 滚轮缩放 · 右键平移</div>
           <div id="viewer-error" class="viewer-message" role="alert" hidden></div>
+        </section>
+        <section id="furnish-view" class="furnish-panel" role="tabpanel" aria-labelledby="tab-furnish" hidden>
+          <div id="furnish-empty" class="furnish-empty"><strong>在自己的户型里试着布置</strong><p id="furnish-empty-text">生成模型后，即可放入床、沙发、橱柜和卫浴设施。</p><button id="furnish-start" type="button" class="primary">选择示例户型开始</button></div>
+          <div id="furnish-workspace" class="furnish-workspace" hidden>
+            <div class="furnish-toolbar">
+              <div class="layout-summary"><strong id="furnish-count">0 件设施</strong><span id="furnish-status" role="status" aria-live="polite">已保存</span></div>
+              <div class="layout-command-group"><button id="furnish-undo" title="撤销（⌘/Ctrl Z）" disabled>撤销</button><button id="furnish-redo" title="重做（⌘/Ctrl Shift Z）" disabled>重做</button><button id="furnish-reload" hidden>重新读取</button><button id="furnish-save" class="primary">保存方案</button><button id="furnish-to-3d">查看 3D</button></div>
+            </div>
+            <aside class="furniture-library" aria-label="家具设施库">
+              <div class="furnish-section-heading"><h2>家具与设施</h2><span>20 种</span></div>
+              <label class="category-label">分类<select id="furniture-category"><option value="all">全部设施</option><option>卧室</option><option>客厅</option><option>餐厨</option><option>家电</option><option>卫浴</option><option>书房</option></select></label>
+              <div id="furniture-catalog" class="furniture-catalog"></div>
+              <p class="library-help">点选设施，再点平面图放置。也可直接拖入。</p>
+            </aside>
+            <div class="furnish-drawing">
+              <div class="plan-controls"><label class="check-label"><input id="furnish-snap" type="checkbox" checked>吸附</label><label class="check-label"><input id="furnish-grid" type="checkbox" checked>网格</label><div><button id="furnish-zoom-out" aria-label="缩小平面">−</button><button id="furnish-fit">适应</button><button id="furnish-zoom-in" aria-label="放大平面">＋</button></div></div>
+              <div id="furnish-stage" class="furnish-stage"><canvas id="furnish-canvas" tabindex="0" aria-label="空间布置平面图。点选设施后点击放置，拖动移动，R 旋转，方向键微调，Delete 删除。"></canvas><span id="placement-prompt" class="placement-prompt" hidden></span></div>
+              <div class="plan-status"><span id="furnish-instruction">点选设施放置 · 拖动移动 · 滚轮缩放 · 空格拖动平移</span><span id="furnish-scale"></span></div>
+            </div>
+            <aside class="furnish-inspector" aria-label="布置属性">
+              <section class="item-properties"><div class="furnish-section-heading"><h2 id="selected-name">设施属性</h2><span id="selected-tag"></span></div>
+                <p id="selection-empty" class="muted-copy">选择图中的设施，调整尺寸、方向和颜色。</p>
+                <form id="furniture-properties" hidden>
+                  <div class="furniture-fields"><label>宽（米）<input id="furniture-width" type="number" min="0.1" max="8" step="any" required></label><label>深（米）<input id="furniture-depth" type="number" min="0.1" max="8" step="any" required></label><label>高（米）<input id="furniture-height" type="number" min="0.05" max="4.5" step="any" required></label><label>角度（°）<input id="furniture-rotation" type="number" min="0" max="359.999999" step="any" required></label></div>
+                  <label class="furniture-color-label">主体颜色<input id="furniture-color" type="color" value="#91aabd"></label>
+                  <button class="apply-properties" type="submit">应用尺寸与颜色</button>
+                  <div class="item-actions"><button id="furniture-rotate" type="button">旋转 90°</button><button id="furniture-copy" type="button">复制</button><button id="furniture-delete" type="button">删除</button></div>
+                </form>
+              </section>
+              <section class="finish-properties"><div class="furnish-section-heading"><h2>整体饰面</h2><span>全屋</span></div>
+                <label>地面<select id="floor-finish"><option value="original">原始灰地面</option><option value="oak">浅橡木色</option><option value="tile">米白地砖色</option><option value="stone">灰色石材</option></select></label>
+                <label>墙面（3D）<select id="wall-finish"><option value="original">原始墙面</option><option value="ivory">暖白</option><option value="white">纯白</option><option value="sage">浅灰绿</option></select></label>
+              </section>
+              <section class="placed-section"><div class="furnish-section-heading"><h2>已放置</h2><span id="placed-total">0</span></div><div id="placed-items" class="placed-items"></div></section>
+              <section class="furnish-export"><button id="furnish-export-glb" class="primary">下载带布置的 GLB</button><div><button id="furnish-export-json">导出方案</button><button id="furnish-import">导入方案</button><input id="furnish-import-file" type="file" accept=".json,application/json" hidden></div><p>用于空间布局示意。请核对真实尺寸、门洞与通道。</p></section>
+            </aside>
+          </div>
         </section>
         <section id="edit-view" class="view-panel edit-panel" role="tabpanel" aria-labelledby="tab-edit" hidden>
           <div id="edit-empty" class="edit-empty">生成线稿模型后，可在这里补墙、标门洞。</div>
