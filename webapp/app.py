@@ -288,6 +288,12 @@ def create_app(data_dir=None):
         # Normalize optional appearance fields without rewriting older saved layouts.
         return Layout.model_validate(store.layout(jid)).model_dump()
 
+    @app.get('/api/jobs/{jid}/surfaces')
+    def surfaces(jid: str, request: Request):
+        completed_job(request, jid)
+        from webapp.surfaces import get_surfaces
+        return get_surfaces(store.directory / 'jobs' / jid)
+
     @app.put('/api/jobs/{jid}/layout')
     def put_layout(jid: str, data: Layout, request: Request):
         completed_job(request, jid)

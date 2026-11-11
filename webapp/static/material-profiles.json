@@ -31,7 +31,9 @@
     "roughness": 0.62,
     "metalness": 0,
     "texture": "wood.png",
-    "repeat": 2
+    "repeat": 2,
+    "surfaceTexture": "parquet.png",
+    "surfaceRepeat": 1
   },
   "painted": {
     "name": "哑光漆",
@@ -50,5 +52,26 @@
     "roughness": 0.28,
     "metalness": 0.75,
     "texture": null
+  },
+  "tile": {
+    "name": "瓷砖",
+    "roughness": 0.3,
+    "metalness": 0,
+    "texture": "tile.png",
+    "surfaceRepeat": 1.666667
+  },
+  "stone": {
+    "name": "石材",
+    "roughness": 0.6,
+    "metalness": 0,
+    "texture": "stone.png",
+    "surfaceRepeat": 1
+  },
+  "wallpaper": {
+    "name": "墙纸",
+    "roughness": 0.92,
+    "metalness": 0,
+    "texture": "wallpaper.png",
+    "surfaceRepeat": 2
   }
 }

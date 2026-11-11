@@ -47,7 +47,7 @@ async function enter(user){
   state.user=user;$('account-name').textContent=user.username;$('auth-screen').hidden=true;$('studio').hidden=false;
   $('auth-error').textContent='';
   try{
-    if(!state.viewer)state.viewer=new ModelViewer($('viewer'),{onSelect:id=>decoration.select(id),onNavigation:active=>decoration.navigationChanged(active)});
+    if(!state.viewer)state.viewer=new ModelViewer($('viewer'),{onSelect:id=>decoration.select(id),onSurface:(kind,id)=>decoration.selectSurface(kind,id),onNavigation:active=>decoration.navigationChanged(active)});
     await showSample();
   }catch(e){viewerError('三维显示不可用，请确认浏览器支持 WebGL。模型文件仍可下载。');}
   const info=await api('/api/me');
@@ -153,7 +153,12 @@ const furnishing=new FurnishingEditor({api,viewer:()=>state.viewer,toast,showMod
   setView('model');$('cutaway').checked=true;state.viewer?.cut(true);decoration.setMode(true);
 }});
 const decoration=new DecorationPanel({editor:furnishing,viewer:()=>state.viewer,toast,showPlan:()=>setView('furnish')});
-furnishing.onUpdate=()=>decoration.refresh();furnishing.onStatus=(message,error)=>decoration.status(message,error);furnishing.onReset=()=>decoration.reset();
+furnishing.onUpdate=()=>{
+  if(!$('furnish-view').hidden&&furnishing.selected){decoration.kind='furniture';decoration.surfaceId=null;}
+  decoration.refresh();
+};
+furnishing.onStatus=(message,error)=>decoration.status(message,error);furnishing.onReset=()=>decoration.reset();
+furnishing.onPreview=()=>decoration.syncSelection();
 $('furnish-start').addEventListener('click',()=>{setView('model');$('load-sample').click();$('generate').scrollIntoView({block:'center'});});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $('view-top').addEventListener('click',()=>state.viewer?.top());$('view-reset').addEventListener('click',()=>state.viewer?.reset());

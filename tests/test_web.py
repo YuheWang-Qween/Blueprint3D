@@ -170,10 +170,12 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.client.put(url,headers=HEADERS,json=saved).json()['revision'],2)
         self.client.post('/api/logout',headers=HEADERS)
         self.assertEqual(self.client.get(url).status_code,401)
+        self.assertEqual(self.client.get(f"/api/jobs/{job['id']}/surfaces").status_code,401)
         self.register('furniture_other')
         self.assertEqual(self.client.get(url).status_code,404)
         self.assertEqual(self.client.put(url,headers=HEADERS,json=saved).status_code,404)
         self.assertEqual(self.client.get(f"/api/jobs/{job['id']}/furnished.glb").status_code,404)
+        self.assertEqual(self.client.get(f"/api/jobs/{job['id']}/surfaces").status_code,404)
 
     def test_furnishing_rejects_invalid_documents_without_overwriting(self):
         self.register()
@@ -198,6 +200,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/jobs/waiting/layout').status_code,409)
         self.assertEqual(self.client.put('/api/jobs/waiting/layout',headers=HEADERS,json={}).status_code,409)
         self.assertEqual(self.client.get('/api/jobs/waiting/furnished.glb').status_code,409)
+        self.assertEqual(self.client.get('/api/jobs/waiting/surfaces').status_code,409)
 
     def test_decoration_roundtrip_legacy_defaults_and_textured_export(self):
         import trimesh
@@ -232,6 +235,70 @@ class WebTests(unittest.TestCase):
             bad={**saved,'items':[{**decorated,**patch}]}
             self.assertEqual(self.client.put(url,headers=HEADERS,json=bad).status_code,422)
         self.assertEqual(self.client.get(url).json(),saved)
+
+    def test_local_surface_finishes_persist_and_export_without_changing_structure(self):
+        import numpy as np
+        import trimesh
+        from webapp.surfaces import get_surfaces, _surfaces
+        self.register()
+        job=self.completed(self.upload().json()['id'])
+        base=f"/api/jobs/{job['id']}"
+        original=self.client.get(base+'/files/model.glb').content
+        regions=self.client.get(base+'/surfaces').json()['surfaces']
+        floors=[s for s in regions if s['kind']=='floor'];walls=[s for s in regions if s['kind']=='wall']
+        self.assertGreater(len(floors),1);self.assertGreater(len(walls),1)
+        _surfaces.cache_clear()
+        self.assertEqual(get_surfaces(Path(self.temp.name)/'jobs'/job['id'])['surfaces'],regions)
+        # The finish skins retain all original vertical wall areas, including door holes.
+        source=trimesh.load(io.BytesIO(original),file_type='glb',force='scene')
+        wall_mesh=next(m for n,m in source.geometry.items() if n.startswith('wall'))
+        expected=wall_mesh.area_faces[np.abs(wall_mesh.face_normals[:,1])<.01].sum()
+        skins=[]
+        for part in walls:
+            mesh=trimesh.Trimesh(np.array(part['positions']).reshape(-1,3),np.array(part['indices']).reshape(-1,3),process=False)
+            self.assertTrue(np.all(mesh.face_normals @ part['normal'] > .99))
+            skins.append(mesh)
+        self.assertAlmostEqual(sum(m.area for m in skins),float(expected),places=3)
+        layout=self.client.get(base+'/layout').json()
+        layout['finishes'].update(floorStyle={'material':'wood','color':'#c8ad82'},wallStyle={'material':'painted','color':'#eee9dc'},surfaces={
+            floors[0]['id']:{'material':'tile','color':'#abb9c1'},walls[0]['id']:{'material':'wallpaper','color':'#91aabd'}})
+        saved=self.client.put(base+'/layout',headers=HEADERS,json=layout)
+        self.assertEqual(saved.status_code,200,saved.text)
+        self.assertEqual(self.client.get(base+'/layout').json(),saved.json())
+        exported=self.client.get(base+'/furnished.glb')
+        self.assertEqual(exported.status_code,200,exported.text[:200] if exported.status_code!=200 else '')
+        scene=trimesh.load(io.BytesIO(exported.content),file_type='glb',force='scene')
+        for region,roughness,color in [(floors[0],.3,[171,185,193]),(walls[0],.92,[145,170,189]),(floors[1],.62,[200,173,130])]:
+            mat=scene.geometry['finish_'+region['id']].visual.material
+            self.assertAlmostEqual(mat.roughnessFactor,roughness)
+            self.assertEqual(mat.baseColorFactor.tolist()[:3],color)
+            self.assertEqual(mat.baseColorTexture.size,(256,256))
+        self.assertEqual(self.client.get(base+'/files/model.glb').content,original)
+        for overrides in [{floors[0]['id']:{'material':'leather','color':'#ffffff'}},{'wall-0000000000000000':{'material':'painted','color':'#ffffff'}}]:
+            bad=copy.deepcopy(saved.json());bad['finishes']['surfaces']=overrides
+            self.assertEqual(self.client.put(base+'/layout',headers=HEADERS,json=bad).status_code,422)
+        self.assertEqual(self.client.get(base+'/layout').json(),saved.json())
+
+    def test_every_furniture_family_has_editable_styles_and_exports(self):
+        import trimesh
+        from webapp.furnishing import CATALOG, Furniture
+        self.register();job=self.completed(self.upload().json()['id']);base=f"/api/jobs/{job['id']}"
+        layout=self.client.get(base+'/layout').json();expected={}
+        for definition in CATALOG.values():
+            self.assertTrue(definition.get('variants'),definition['id'])
+            for variant in [{'id':'standard','parts':definition['parts']},*definition['variants']]:
+                item=dict(id=definition['id']+'_'+variant['id'],type=definition['id'],x=3,z=-4,rotation=0,
+                          width=definition['width'],depth=definition['depth'],height=definition['height'],
+                          color='#8f9e8c',variant=variant['id'],material=definition['materials'][0])
+                for material in definition['materials']:
+                    Furniture.model_validate({**item,'material':material})
+                layout['items'].append(item);expected['furniture_'+item['id']+'_']=len(variant['parts'])
+        saved=self.client.put(base+'/layout',headers=HEADERS,json=layout)
+        self.assertEqual(saved.status_code,200,saved.text)
+        exported=self.client.get(base+'/furnished.glb')
+        scene=trimesh.load(io.BytesIO(exported.content),file_type='glb',force='scene')
+        for prefix,count in expected.items():
+            self.assertEqual(sum(n.startswith(prefix) for n in scene.geometry),count,prefix)
 
 
 if __name__=='__main__':

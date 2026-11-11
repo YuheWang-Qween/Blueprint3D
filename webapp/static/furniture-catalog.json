@@ -31,14 +31,31 @@
       {"shape": "box", "position": [0, 0.67, -0.31], "size": [0.78, 0.12, 0.22], "color": "#faf8f2"}
     ]}
   ]},
-  {"id": "wardrobe", "name": "衣柜", "category": "卧室", "width": 1.8, "depth": 0.6, "height": 2.2, "color": "#c5b89e", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "wardrobe", "name": "衣柜", "category": "卧室", "width": 1.8, "depth": 0.6, "height": 2.2, "color": "#c5b89e", "materials": ["wood", "painted", "metal"], "standardName": "三门柜", "parts": [
     {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 1], "color": "body"},
     {"shape": "box", "position": [-0.17, 0.5, 0.505], "size": [0.012, 0.94, 0.015], "color": "#887d6b"},
     {"shape": "box", "position": [0.17, 0.5, 0.505], "size": [0.012, 0.94, 0.015], "color": "#887d6b"}
+  ], "variants": [
+    {"id": "sliding", "name": "双移门", "parts": [
+      {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 0.9], "color": "body"},
+      {"shape": "box", "position": [-0.25, 0.5, 0.46], "size": [0.49, 0.94, 0.06], "color": "body"},
+      {"shape": "box", "position": [0.25, 0.5, 0.49], "size": [0.49, 0.94, 0.02], "color": "body"},
+      {"shape": "box", "position": [-0.05, 0.5, 0.5], "size": [0.02, 0.3, 0.02], "color": "#6d6a62"},
+      {"shape": "box", "position": [0.05, 0.5, 0.5], "size": [0.02, 0.3, 0.02], "color": "#6d6a62"}
+    ]}
   ]},
-  {"id": "nightstand", "name": "床头柜", "category": "卧室", "width": 0.5, "depth": 0.45, "height": 0.5, "color": "#c1ad8d", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "nightstand", "name": "床头柜", "category": "卧室", "width": 0.5, "depth": 0.45, "height": 0.5, "color": "#c1ad8d", "materials": ["wood", "painted", "metal"], "standardName": "抽屉柜", "parts": [
     {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.55, 0.51], "size": [0.75, 0.035, 0.02], "color": "#817562"}
+  ], "variants": [
+    {"id": "open", "name": "开放层架", "parts": [
+      {"shape": "box", "position": [0, 0.06, 0], "size": [1, 0.12, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.95, 0], "size": [1, 0.1, 1], "color": "body"},
+      {"shape": "box", "position": [-0.45, 0.5, 0], "size": [0.1, 0.88, 1], "color": "body"},
+      {"shape": "box", "position": [0.45, 0.5, 0], "size": [0.1, 0.88, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.5, -0.45], "size": [1, 0.88, 0.1], "color": "body"},
+      {"shape": "box", "position": [0, 0.5, 0], "size": [1, 0.07, 1], "color": "body"}
+    ]}
   ]},
   {"id": "sofa", "name": "三人沙发", "category": "客厅", "width": 2.4, "depth": 0.9, "height": 0.85, "color": "#99ab96", "materials": ["fabric", "leather", "velvet"], "standardName": "经典直排", "parts": [
     {"shape": "box", "position": [0, 0.16, 0], "size": [0.95, 0.2, 0.9], "color": "#766a59"},
@@ -126,10 +143,22 @@
       {"shape": "cylinder", "position": [0, 0.92, 0], "size": [1, 0.16, 1], "color": "body"}
     ]}
   ]},
-  {"id": "tv-cabinet", "name": "电视柜", "category": "客厅", "width": 1.8, "depth": 0.4, "height": 0.5, "color": "#b6a789", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "tv-cabinet", "name": "电视柜", "category": "客厅", "width": 1.8, "depth": 0.4, "height": 0.5, "color": "#b6a789", "materials": ["wood", "painted", "metal"], "standardName": "封闭柜门", "parts": [
     {"shape": "box", "position": [0, 0.48, 0], "size": [1, 0.9, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.96, 0], "size": [1, 0.08, 1], "color": "#eee7da"},
     {"shape": "box", "position": [0, 0.5, 0.505], "size": [0.015, 0.75, 0.015], "color": "#796f5e"}
+  ], "variants": [
+    {"id": "shelves", "name": "开放储物柜", "parts": [
+      {"shape": "box", "position": [0, 0.18, 0], "size": [1, 0.1, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.94, 0], "size": [1, 0.12, 1], "color": "body"},
+      {"shape": "box", "position": [-0.47, 0.54, 0], "size": [0.06, 0.7, 1], "color": "body"},
+      {"shape": "box", "position": [0.47, 0.54, 0], "size": [0.06, 0.7, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.54, -0.46], "size": [0.94, 0.7, 0.08], "color": "body"},
+      {"shape": "box", "position": [-0.17, 0.54, 0], "size": [0.04, 0.7, 1], "color": "body"},
+      {"shape": "box", "position": [0.17, 0.54, 0], "size": [0.04, 0.7, 1], "color": "body"},
+      {"shape": "box", "position": [-0.42, 0.065, 0], "size": [0.06, 0.13, 0.7], "color": "#716252"},
+      {"shape": "box", "position": [0.42, 0.065, 0], "size": [0.06, 0.13, 0.7], "color": "#716252"}
+    ]}
   ]},
   {"id": "dining-table", "name": "餐桌", "category": "餐厨", "width": 1.4, "depth": 0.8, "height": 0.75, "color": "#c9b28d", "materials": ["wood", "painted", "metal"], "standardName": "长方形", "parts": [
     {"shape": "box", "position": [-0.41, 0.45, -0.38], "size": [0.065, 0.9, 0.065], "color": "#716252"},
@@ -146,69 +175,153 @@
       {"shape": "cylinder", "position": [0, 0.94, 0], "size": [1, 0.12, 1], "color": "body"}
     ]}
   ]},
-  {"id": "chair", "name": "餐椅", "category": "餐厨", "width": 0.45, "depth": 0.45, "height": 0.85, "color": "#b8a48a", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "chair", "name": "餐椅", "category": "餐厨", "width": 0.45, "depth": 0.45, "height": 0.85, "color": "#b8a48a", "materials": ["wood", "painted", "metal", "fabric", "leather"], "standardName": "简约餐椅", "parts": [
     {"shape": "box", "position": [-0.41, 0.25, -0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
     {"shape": "box", "position": [-0.41, 0.25, 0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
     {"shape": "box", "position": [0.41, 0.25, -0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
     {"shape": "box", "position": [0.41, 0.25, 0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
     {"shape": "box", "position": [0, 0.53, 0], "size": [1, 0.1, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.76, -0.43], "size": [1, 0.48, 0.14], "color": "body"}
+  ], "variants": [
+    {"id": "arms", "name": "扶手餐椅", "parts": [
+      {"shape": "box", "position": [-0.41, 0.25, -0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
+      {"shape": "box", "position": [-0.41, 0.25, 0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
+      {"shape": "box", "position": [0.41, 0.25, -0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
+      {"shape": "box", "position": [0.41, 0.25, 0.38], "size": [0.065, 0.5, 0.065], "color": "#716252"},
+      {"shape": "rounded-box", "position": [0, 0.53, 0], "size": [1, 0.1, 1], "color": "body"},
+      {"shape": "rounded-box", "position": [0, 0.76, -0.43], "size": [1, 0.48, 0.14], "color": "body"},
+      {"shape": "rounded-box", "position": [-0.45, 0.64, 0.05], "size": [0.09, 0.2, 0.64], "color": "body"},
+      {"shape": "rounded-box", "position": [0.45, 0.64, 0.05], "size": [0.09, 0.2, 0.64], "color": "body"}
+    ]}
   ]},
-  {"id": "counter", "name": "操作台", "category": "餐厨", "width": 1.2, "depth": 0.6, "height": 0.85, "color": "#babcb0", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "counter", "name": "操作台", "category": "餐厨", "width": 1.2, "depth": 0.6, "height": 0.85, "color": "#babcb0", "materials": ["wood", "painted", "metal"], "standardName": "一字操作台", "parts": [
     {"shape": "box", "position": [0, 0.45, 0], "size": [1, 0.9, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.95, 0], "size": [1, 0.1, 1], "color": "#e8e4d8"},
     {"shape": "box", "position": [0, 0.45, 0.505], "size": [0.02, 0.82, 0.015], "color": "#879386"}
+  ], "variants": [
+    {"id": "corner", "name": "转角操作台", "parts": [
+      {"shape": "box", "position": [0, 0.45, -0.27], "size": [1, 0.9, 0.46], "color": "body"},
+      {"shape": "box", "position": [-0.28, 0.45, 0.23], "size": [0.44, 0.9, 0.54], "color": "body"},
+      {"shape": "box", "position": [0, 0.95, -0.27], "size": [1, 0.1, 0.46], "color": "#e8e4d8"},
+      {"shape": "box", "position": [-0.28, 0.95, 0.23], "size": [0.44, 0.1, 0.54], "color": "#e8e4d8"}
+    ]}
   ]},
-  {"id": "stove", "name": "灶台", "category": "餐厨", "width": 0.8, "depth": 0.6, "height": 0.85, "color": "#b8bbaf", "materials": ["metal", "painted"], "standardName": "基础款", "parts": [
+  {"id": "stove", "name": "灶台", "category": "餐厨", "width": 0.8, "depth": 0.6, "height": 0.85, "color": "#b8bbaf", "materials": ["metal", "painted"], "standardName": "双眼灶", "parts": [
     {"shape": "box", "position": [0, 0.46, 0], "size": [1, 0.92, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.95, 0], "size": [1, 0.1, 1], "color": "#e8e4d8"},
     {"shape": "box", "position": [0, 1.01, 0], "size": [0.88, 0.025, 0.8], "color": "#49565b"},
     {"shape": "cylinder", "position": [-0.23, 1.03, 0], "size": [0.28, 0.025, 0.46], "color": "#9eaaa9"},
     {"shape": "cylinder", "position": [0.23, 1.03, 0], "size": [0.28, 0.025, 0.46], "color": "#9eaaa9"}
+  ], "variants": [
+    {"id": "four", "name": "四眼灶", "parts": [
+      {"shape": "box", "position": [0, 0.46, 0], "size": [1, 0.92, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.95, 0], "size": [1, 0.1, 1], "color": "#e8e4d8"},
+      {"shape": "box", "position": [0, 1.01, 0], "size": [0.88, 0.025, 0.8], "color": "#49565b"},
+      {"shape": "cylinder", "position": [-0.23, 1.03, -0.22], "size": [0.25, 0.025, 0.3], "color": "#9eaaa9"},
+      {"shape": "cylinder", "position": [-0.23, 1.03, 0.22], "size": [0.25, 0.025, 0.3], "color": "#9eaaa9"},
+      {"shape": "cylinder", "position": [0.23, 1.03, -0.22], "size": [0.25, 0.025, 0.3], "color": "#9eaaa9"},
+      {"shape": "cylinder", "position": [0.23, 1.03, 0.22], "size": [0.25, 0.025, 0.3], "color": "#9eaaa9"}
+    ]}
   ]},
-  {"id": "fridge", "name": "冰箱", "category": "家电", "width": 0.75, "depth": 0.7, "height": 1.8, "color": "#b9c5c9", "materials": ["metal", "painted"], "standardName": "基础款", "parts": [
+  {"id": "fridge", "name": "冰箱", "category": "家电", "width": 0.75, "depth": 0.7, "height": 1.8, "color": "#b9c5c9", "materials": ["metal", "painted"], "standardName": "上下双门", "parts": [
     {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.36, 0.505], "size": [0.99, 0.016, 0.015], "color": "#74878d"},
     {"shape": "box", "position": [0.33, 0.65, 0.53], "size": [0.04, 0.22, 0.05], "color": "#65777b"}
+  ], "variants": [
+    {"id": "double", "name": "对开门", "parts": [
+      {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.5, 0.505], "size": [0.018, 0.98, 0.01], "color": "#74878d"},
+      {"shape": "box", "position": [-0.06, 0.57, 0.5], "size": [0.03, 0.3, 0.05], "color": "#65777b"},
+      {"shape": "box", "position": [0.06, 0.57, 0.5], "size": [0.03, 0.3, 0.05], "color": "#65777b"}
+    ]}
   ]},
-  {"id": "washer", "name": "洗衣机", "category": "家电", "width": 0.6, "depth": 0.6, "height": 0.85, "color": "#d8dfdf", "materials": ["metal", "painted"], "standardName": "基础款", "parts": [
+  {"id": "washer", "name": "洗衣机", "category": "家电", "width": 0.6, "depth": 0.6, "height": 0.85, "color": "#d8dfdf", "materials": ["metal", "painted"], "standardName": "单桶洗衣机", "parts": [
     {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 1], "color": "body"},
     {"shape": "cylinder", "position": [0, 1.005, 0], "size": [0.65, 0.015, 0.65], "color": "#9daeb6"},
     {"shape": "box", "position": [0, 0.94, 0.43], "size": [0.86, 0.035, 0.04], "color": "#667e8b"}
+  ], "variants": [
+    {"id": "twin", "name": "双桶洗衣机", "parts": [
+      {"shape": "box", "position": [0, 0.5, 0], "size": [1, 1, 1], "color": "body"},
+      {"shape": "cylinder", "position": [-0.2, 1.005, 0], "size": [0.5, 0.015, 0.7], "color": "#9daeb6"},
+      {"shape": "cylinder", "position": [0.3, 1.005, 0], "size": [0.3, 0.015, 0.6], "color": "#9daeb6"},
+      {"shape": "box", "position": [0.1, 0.96, 0], "size": [0.03, 0.04, 0.88], "color": "#667e8b"}
+    ]}
   ]},
-  {"id": "toilet", "name": "坐便器", "category": "卫浴", "width": 0.42, "depth": 0.72, "height": 0.76, "color": "#f2f4ef", "materials": ["ceramic", "painted"], "standardName": "基础款", "parts": [
+  {"id": "toilet", "name": "坐便器", "category": "卫浴", "width": 0.42, "depth": 0.72, "height": 0.76, "color": "#f2f4ef", "materials": ["ceramic", "painted"], "standardName": "分体式坐便器", "parts": [
     {"shape": "cylinder", "position": [0, 0.23, 0.12], "size": [0.65, 0.46, 0.65], "color": "body"},
     {"shape": "cylinder", "position": [0, 0.5, 0.12], "size": [0.95, 0.13, 0.7], "color": "body"},
     {"shape": "cylinder", "position": [0, 0.575, 0.12], "size": [0.56, 0.025, 0.46], "color": "#c2d1d3"},
     {"shape": "box", "position": [0, 0.7, -0.36], "size": [0.95, 0.6, 0.26], "color": "body"}
+  ], "variants": [
+    {"id": "integrated", "name": "一体式坐便器", "parts": [
+      {"shape": "rounded-box", "position": [0, 0.29, 0.02], "size": [0.9, 0.58, 0.9], "color": "body"},
+      {"shape": "cylinder", "position": [0, 0.57, 0.13], "size": [0.95, 0.12, 0.7], "color": "body"},
+      {"shape": "cylinder", "position": [0, 0.64, 0.13], "size": [0.58, 0.025, 0.47], "color": "#c2d1d3"},
+      {"shape": "rounded-box", "position": [0, 0.72, -0.35], "size": [0.95, 0.56, 0.3], "color": "body"}
+    ]}
   ]},
-  {"id": "basin", "name": "洗手台", "category": "卫浴", "width": 0.8, "depth": 0.5, "height": 0.85, "color": "#b7bbad", "materials": ["ceramic", "painted"], "standardName": "基础款", "parts": [
+  {"id": "basin", "name": "洗手台", "category": "卫浴", "width": 0.8, "depth": 0.5, "height": 0.85, "color": "#b7bbad", "materials": ["ceramic", "painted", "wood"], "standardName": "嵌入式台盆", "parts": [
     {"shape": "box", "position": [0, 0.43, 0], "size": [1, 0.86, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.9, 0], "size": [1, 0.12, 1], "color": "#f3f4ef"},
     {"shape": "cylinder", "position": [0, 0.97, 0], "size": [0.75, 0.025, 0.65], "color": "#bacdce"},
     {"shape": "box", "position": [0, 1.02, -0.36], "size": [0.05, 0.08, 0.12], "color": "#788d92"}
+  ], "variants": [
+    {"id": "countertop", "name": "台上盆", "parts": [
+      {"shape": "box", "position": [0, 0.38, 0], "size": [1, 0.76, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.8, 0], "size": [1, 0.08, 1], "color": "#bca88c"},
+      {"shape": "cylinder", "position": [0, 0.91, 0.03], "size": [0.76, 0.18, 0.72], "color": "#f3f4ef"},
+      {"shape": "cylinder", "position": [0, 1.003, 0.03], "size": [0.6, 0.014, 0.56], "color": "#bacdce"},
+      {"shape": "box", "position": [0, 0.96, -0.4], "size": [0.05, 0.08, 0.1], "color": "#788d92"}
+    ]}
   ]},
-  {"id": "shower", "name": "淋浴区", "category": "卫浴", "width": 0.9, "depth": 0.9, "height": 2.0, "color": "#d4e1e0", "materials": ["ceramic", "painted"], "standardName": "基础款", "parts": [
+  {"id": "shower", "name": "淋浴区", "category": "卫浴", "width": 0.9, "depth": 0.9, "height": 2.0, "color": "#d4e1e0", "materials": ["ceramic", "painted", "tile", "stone"], "standardName": "双侧围合", "parts": [
     {"shape": "box", "position": [0, 0.025, 0], "size": [1, 0.05, 1], "color": "#edf0ea"},
     {"shape": "box", "position": [-0.48, 0.5, 0], "size": [0.035, 1, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.5, -0.48], "size": [1, 1, 0.035], "color": "body"},
     {"shape": "box", "position": [-0.43, 0.55, -0.4], "size": [0.025, 0.75, 0.025], "color": "#6d858c"},
     {"shape": "box", "position": [-0.35, 0.92, -0.4], "size": [0.2, 0.03, 0.16], "color": "#6d858c"}
+  ], "variants": [
+    {"id": "screen", "name": "单侧屏风", "parts": [
+      {"shape": "box", "position": [0, 0.025, 0], "size": [1, 0.05, 1], "color": "#edf0ea"},
+      {"shape": "box", "position": [-0.48, 0.5, 0], "size": [0.035, 1, 1], "color": "body"},
+      {"shape": "box", "position": [-0.43, 0.55, -0.4], "size": [0.025, 0.75, 0.025], "color": "#6d858c"},
+      {"shape": "box", "position": [-0.35, 0.92, -0.4], "size": [0.2, 0.03, 0.16], "color": "#6d858c"},
+      {"shape": "box", "position": [-0.48, 0.5, -0.48], "size": [0.045, 1, 0.025], "color": "#6d858c"},
+      {"shape": "box", "position": [-0.48, 0.5, 0.48], "size": [0.045, 1, 0.025], "color": "#6d858c"}
+    ]}
   ]},
-  {"id": "bathtub", "name": "浴缸", "category": "卫浴", "width": 0.75, "depth": 1.6, "height": 0.55, "color": "#f0f2e9", "materials": ["ceramic", "painted"], "standardName": "基础款", "parts": [
+  {"id": "bathtub", "name": "浴缸", "category": "卫浴", "width": 0.75, "depth": 1.6, "height": 0.55, "color": "#f0f2e9", "materials": ["ceramic", "painted"], "standardName": "方形浴缸", "parts": [
     {"shape": "box", "position": [0, 0.4, 0], "size": [0.85, 0.8, 0.9], "color": "body"},
     {"shape": "box", "position": [0, 0.9, 0], "size": [1, 0.2, 1], "color": "body"},
     {"shape": "box", "position": [0, 1.005, 0], "size": [0.72, 0.02, 0.8], "color": "#b3cfd2"}
+  ], "variants": [
+    {"id": "oval", "name": "椭圆浴缸", "parts": [
+      {"shape": "cylinder", "position": [0, 0.4, 0], "size": [0.86, 0.8, 0.9], "color": "body"},
+      {"shape": "cylinder", "position": [0, 0.88, 0], "size": [1, 0.24, 1], "color": "body"},
+      {"shape": "cylinder", "position": [0, 1.005, 0], "size": [0.75, 0.02, 0.82], "color": "#b3cfd2"}
+    ]}
   ]},
-  {"id": "desk", "name": "书桌", "category": "书房", "width": 1.2, "depth": 0.6, "height": 0.75, "color": "#c4ad8a", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "desk", "name": "书桌", "category": "书房", "width": 1.2, "depth": 0.6, "height": 0.75, "color": "#c4ad8a", "materials": ["wood", "painted", "metal"], "standardName": "单侧抽屉桌", "parts": [
     {"shape": "box", "position": [-0.41, 0.45, -0.38], "size": [0.065, 0.9, 0.065], "color": "#716252"},
     {"shape": "box", "position": [-0.41, 0.45, 0.38], "size": [0.065, 0.9, 0.065], "color": "#716252"},
     {"shape": "box", "position": [0.41, 0.45, -0.38], "size": [0.065, 0.9, 0.065], "color": "#716252"},
     {"shape": "box", "position": [0.41, 0.45, 0.38], "size": [0.065, 0.9, 0.065], "color": "#716252"},
     {"shape": "box", "position": [0, 0.95, 0], "size": [1, 0.1, 1], "color": "body"},
     {"shape": "box", "position": [0.32, 0.55, 0], "size": [0.28, 0.7, 0.85], "color": "body"}
+  ], "variants": [
+    {"id": "double", "name": "双侧抽屉桌", "parts": [
+      {"shape": "box", "position": [0, 0.95, 0], "size": [1, 0.1, 1], "color": "body"},
+      {"shape": "box", "position": [-0.34, 0.45, 0], "size": [0.28, 0.9, 0.9], "color": "body"},
+      {"shape": "box", "position": [0.34, 0.45, 0], "size": [0.28, 0.9, 0.9], "color": "body"},
+      {"shape": "box", "position": [-0.34, 0.28, 0.455], "size": [0.2, 0.02, 0.02], "color": "#716252"},
+      {"shape": "box", "position": [-0.34, 0.56, 0.455], "size": [0.2, 0.02, 0.02], "color": "#716252"},
+      {"shape": "box", "position": [-0.34, 0.82, 0.455], "size": [0.2, 0.02, 0.02], "color": "#716252"},
+      {"shape": "box", "position": [0.34, 0.28, 0.455], "size": [0.2, 0.02, 0.02], "color": "#716252"},
+      {"shape": "box", "position": [0.34, 0.56, 0.455], "size": [0.2, 0.02, 0.02], "color": "#716252"},
+      {"shape": "box", "position": [0.34, 0.82, 0.455], "size": [0.2, 0.02, 0.02], "color": "#716252"}
+    ]}
   ]},
-  {"id": "bookcase", "name": "书柜", "category": "书房", "width": 0.9, "depth": 0.35, "height": 1.8, "color": "#b4a285", "materials": ["wood", "painted", "metal"], "standardName": "基础款", "parts": [
+  {"id": "bookcase", "name": "书柜", "category": "书房", "width": 0.9, "depth": 0.35, "height": 1.8, "color": "#b4a285", "materials": ["wood", "painted", "metal"], "standardName": "横层书柜", "parts": [
     {"shape": "box", "position": [0, 0.5, -0.46], "size": [1, 1, 0.08], "color": "body"},
     {"shape": "box", "position": [-0.46, 0.5, 0], "size": [0.08, 1, 1], "color": "body"},
     {"shape": "box", "position": [0.46, 0.5, 0], "size": [0.08, 1, 1], "color": "body"},
@@ -217,5 +330,18 @@
     {"shape": "box", "position": [0, 0.5, 0], "size": [1, 0.035, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.75, 0], "size": [1, 0.035, 1], "color": "body"},
     {"shape": "box", "position": [0, 0.98, 0], "size": [1, 0.035, 1], "color": "body"}
+  ], "variants": [
+    {"id": "grid", "name": "格栅书柜", "parts": [
+      {"shape": "box", "position": [0, 0.5, -0.46], "size": [1, 1, 0.08], "color": "body"},
+      {"shape": "box", "position": [-0.46, 0.5, 0], "size": [0.08, 1, 1], "color": "body"},
+      {"shape": "box", "position": [0.46, 0.5, 0], "size": [0.08, 1, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.02, 0], "size": [1, 0.035, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.25, 0], "size": [1, 0.035, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.5, 0], "size": [1, 0.035, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.75, 0], "size": [1, 0.035, 1], "color": "body"},
+      {"shape": "box", "position": [0, 0.98, 0], "size": [1, 0.035, 1], "color": "body"},
+      {"shape": "box", "position": [-0.17, 0.5, 0], "size": [0.035, 0.96, 1], "color": "body"},
+      {"shape": "box", "position": [0.17, 0.5, 0], "size": [0.035, 0.96, 1], "color": "body"}
+    ]}
   ]}
 ]

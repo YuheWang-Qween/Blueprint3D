@@ -1,4 +1,5 @@
-import {FLOORS,emptyLayout,angle,extent,fitItem,contains,meshBounds,validateLayout,drawFurniture} from './furniture.js';
+import {emptyLayout,angle,extent,fitItem,contains,meshBounds,validateLayout,drawFurniture} from './furniture.js';
+import {setSurfaceStyle,surfaceStyle} from './surface-finishes.js';
 
 const $=id=>document.getElementById(id);
 const clone=value=>structuredClone(value);
@@ -29,7 +30,7 @@ export class FurnishingEditor {
     $('furniture-rotate').addEventListener('click',()=>this.rotate());
     $('furniture-copy').addEventListener('click',()=>this.duplicate());
     $('furniture-delete').addEventListener('click',()=>this.remove());
-    for(const kind of ['floor','wall'])$(kind+'-finish').addEventListener('change',e=>this.change(()=>this.document.finishes[kind]=e.target.value));
+    for(const kind of ['floor','wall'])$(kind+'-finish').addEventListener('change',e=>this.change(()=>{this.document.finishes=setSurfaceStyle(this.document.finishes,kind,null,null);this.document.finishes[kind]=e.target.value;}));
     $('furnish-undo').addEventListener('click',()=>this.undo());$('furnish-redo').addEventListener('click',()=>this.undo(true));
     $('furnish-fit').addEventListener('click',()=>this.fit());
     $('furnish-zoom-in').addEventListener('click',()=>this.zoom(1.25));$('furnish-zoom-out').addEventListener('click',()=>this.zoom(.8));
@@ -62,6 +63,7 @@ export class FurnishingEditor {
   reset(){
     this.token++;clearTimeout(this.saveTimer);this.ready=false;this.job=null;this.user=null;this.drag=null;this.selected=null;this.pending=null;
     this.document=emptyLayout();this.dirty=false;this.saving=null;this.blocked=false;this.history=[];this.future=[];
+    this.surfaces=[];this.surfacePaths=[];this.viewer()?.setSurfaces([]);
     this.viewer()?.setLayout(null,[]);$('furnish-workspace').hidden=true;$('furnish-empty').hidden=false;
     $('furnish-empty-text').textContent='生成模型后，即可放入床、沙发、橱柜和卫浴设施。';$('furnish-start').hidden=false;
     this.onReset?.();
@@ -71,9 +73,16 @@ export class FurnishingEditor {
     if(!job||job.status!=='done')return;
     const token=this.token;$('furnish-empty-text').textContent='正在读取户型与布置方案…';$('furnish-start').hidden=true;
     try{
-      const [catalog,meshes,document]=await Promise.all([this.catalogPromise,this.api(`/api/jobs/${job.id}/files/mesh.json`),this.api(`/api/jobs/${job.id}/layout`)]);
+      const [catalog,meshes,document,surfaces]=await Promise.all([this.catalogPromise,this.api(`/api/jobs/${job.id}/files/mesh.json`),this.api(`/api/jobs/${job.id}/layout`),this.api(`/api/jobs/${job.id}/surfaces`)]);
       if(token!==this.token)return;
       this.catalog=catalog;this.meshes=meshes;this.bounds=meshBounds(meshes);this.document={...validateLayout(document,catalog,this.bounds),revision:document.revision};
+      this.surfaces=surfaces.surfaces;this.viewer()?.setSurfaces(this.surfaces);
+      this.surfacePaths=this.surfaces.filter(s=>s.kind==='floor').map(part=>{
+        const path=new Path2D();for(let i=0;i<part.indices.length;i+=3){
+          const vertices=part.indices.slice(i,i+3).map(n=>[part.positions[n*3],part.positions[n*3+2]]);
+          path.moveTo(...vertices[0]);path.lineTo(...vertices[1]);path.lineTo(...vertices[2]);path.closePath();
+        }return {part,path};
+      });
       this.paths=meshes.map(mesh=>{
         const path=new Path2D(),p=mesh.positions;
         for(let i=0;i<mesh.indices.length;i+=3){
@@ -156,7 +165,7 @@ export class FurnishingEditor {
     if(before!==content(this.document)){this.remember(JSON.parse(before));this.changed();}else this.refresh();
   }
   changed(){this.dirty=true;this.stash();this.refresh();this.preview();this.status(this.blocked?'服务器方案已更新，请先导出本机方案再重新读取。':'等待保存…',this.blocked);this.scheduleSave();}
-  preview(){this.viewer()?.setLayout(this.document,this.catalog);this.viewer()?.select(this.selected);}
+  preview(){this.viewer()?.setLayout(this.document,this.catalog);this.viewer()?.select(this.selected);this.onPreview?.();}
   scheduleSave(){clearTimeout(this.saveTimer);if(!this.blocked&&!this.drag)this.saveTimer=setTimeout(()=>this.save(),800);}
   async flush(){
     const token=this.token;
@@ -262,8 +271,10 @@ export class FurnishingEditor {
       for(let p=Math.ceil(-x/scale);p<(w-x)/scale;p++){ctx.moveTo(p,-y/scale);ctx.lineTo(p,(h-y)/scale);}
       for(let p=Math.ceil(-y/scale);p<(h-y)/scale;p++){ctx.moveTo(-x/scale,p);ctx.lineTo((w-x)/scale,p);}ctx.stroke();
     }
-    const floor=FLOORS[this.document.finishes.floor]||'#e6e4d8',wall='#66766f';
-    for(const path of this.paths){ctx.fillStyle=path.kind==='floor'?floor:wall;ctx.fill(path.path);}
+    const floor=surfaceStyle(this.document.finishes,'floor').color,wall='#66766f';
+    for(const path of this.paths.filter(p=>p.kind==='floor')){ctx.fillStyle=floor;ctx.fill(path.path);}
+    for(const {part,path} of this.surfacePaths){ctx.fillStyle=surfaceStyle(this.document.finishes,'floor',part.id).color;ctx.fill(path);}
+    for(const path of this.paths.filter(p=>p.kind!=='floor')){ctx.fillStyle=wall;ctx.fill(path.path);}
     // A linework door is a real opening below its lintel. Mark it on the plan.
     for(const [a,c] of this.doors){ctx.lineWidth=this.job.params.wall_thickness*1.2;ctx.strokeStyle=floor;ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...c);ctx.stroke();ctx.lineWidth=1.2/scale;ctx.strokeStyle='#ae7b2b';ctx.setLineDash([4/scale,3/scale]);ctx.stroke();ctx.setLineDash([]);}
     for(const item of this.document.items)drawFurniture(ctx,item,this.catalog.find(c=>c.id===item.type),scale);
@@ -296,7 +307,7 @@ export class FurnishingEditor {
       if(!await this.flush())throw Error('请先保存当前方案，再下载模型。');if(token!==this.token)return;
       const response=await fetch(`/api/jobs/${this.job.id}/furnished.glb`,{credentials:'same-origin'});
       if(!response.ok)throw Error('布置模型下载失败，请重新登录或稍后重试。');
-      const blob=await response.blob();if(token!==this.token)return;download(blob,'blueprint3d-furnished.glb');this.toast('已下载包含设施和饰面颜色的模型。');
+      const blob=await response.blob();if(token!==this.token)return;download(blob,'blueprint3d-furnished.glb');this.toast('已下载包含家具款式与墙地面材质的模型。');
     }catch(e){this.toast(e.message,true);}finally{$('furnish-export-glb').disabled=false;}
   }
 }

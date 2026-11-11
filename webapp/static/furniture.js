@@ -1,7 +1,8 @@
 // Shared plan geometry. All distances are meters in the source GLB frame.
-export const FLOORS={original:null,oak:'#c8ad82',tile:'#deded3',stone:'#abb9c1'};
-export const WALLS={original:null,ivory:'#eee9dc',white:'#f4f5ef',sage:'#cbd4c4'};
-export const emptyLayout=()=>({version:1,revision:0,items:[],finishes:{floor:'original',wall:'original'}});
+import {validateFinishes,FLOOR_COLORS,WALL_COLORS} from './surface-finishes.js';
+export const FLOORS=FLOOR_COLORS;
+export const WALLS=WALL_COLORS;
+export const emptyLayout=()=>({version:1,revision:0,items:[],finishes:validateFinishes({floor:'original',wall:'original'})});
 export const radians=degrees=>degrees*Math.PI/180;
 export const angle=value=>((value%360)+360)%360;
 export const variantsFor=definition=>[{id:'standard',name:definition.standardName||'基础款',parts:definition.parts},...(definition.variants||[])];
@@ -41,7 +42,7 @@ export function meshBounds(meshes){
 }
 export function validateLayout(data,catalog,bounds){
   if(data?.version!==1||!Array.isArray(data.items)||data.items.length>200)throw Error('方案格式无效，最多放置 200 件设施。');
-  if(!data.finishes||!Object.hasOwn(FLOORS,data.finishes.floor)||!Object.hasOwn(WALLS,data.finishes.wall))throw Error('方案中的饰面无效。');
+  const finishes=validateFinishes(data.finishes);
   const ids=new Set();
   const items=data.items.map(item=>{
     if(!catalog.some(c=>c.id===item.type)||!/^[a-zA-Z0-9_-]{1,64}$/.test(item.id)||ids.has(item.id))throw Error('设施类型或编号无效。');
@@ -55,7 +56,7 @@ export function validateLayout(data,catalog,bounds){
     const normalized=Object.fromEntries(['id','type','x','z','width','depth','height','rotation','color'].map(k=>[k,item[k]]));
     return appearance(normalized,catalog.find(c=>c.id===item.type),{variant:item.variant,material:item.material});
   });
-  return {version:1,revision:0,items,finishes:{floor:data.finishes.floor,wall:data.finishes.wall}};
+  return {version:1,revision:0,items,finishes};
 }
 
 export function drawFurniture(ctx,item,definition,scale=1){

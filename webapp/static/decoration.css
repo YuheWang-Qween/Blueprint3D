@@ -6,6 +6,8 @@
 .decorate-panel{background:#fff;border-left:1px solid var(--line);padding:20px 18px;overflow:auto;min-height:0}
 .decorate-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.decorate-heading h2{font-size:17px;font-weight:600}.decorate-heading p{font-size:11px;color:#7b8c98;margin-top:5px}.decorate-heading button{font-size:20px;line-height:1;padding:4px 8px;border:0;color:#7b8c98}
 .decorate-status{margin-top:14px;font-size:11px;color:#4e7767;overflow-wrap:anywhere}.decorate-status.save-error{color:var(--error)}
+.decorate-targets{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:16px}.decorate-targets button{padding:7px 5px;font-size:12px}.decorate-targets button[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:#fff}
+.decorate-scope{font-size:11px;line-height:1.7;color:#738391;margin-top:12px;padding:8px 10px;background:#f3f6f7;border-left:2px solid var(--brass)}
 .decorate-picker-label{font-size:11px;color:#748797;margin-top:15px}#decorate-picker{height:36px;padding:5px 8px;font-size:12px;margin-top:7px}
 .decorate-empty{font-size:12px;line-height:1.8;color:#7a8d9b;margin:18px 0}
 #decorate-go-plan{font-size:11px;padding:5px 9px;margin-top:9px;color:#607d92}
