@@ -2,7 +2,7 @@ import {ModelViewer} from './viewer.bundle.js';
 import {FurnishingEditor} from './furnishing-editor.js';
 import {DecorationPanel} from './decoration.js';
 const $=id=>document.getElementById(id);
-const state={user:null,register:false,file:null,active:null,jobs:[],viewer:null,plan:null,undo:[],tool:'wall',start:null,dirty:false,poll:null,loadId:0};
+const state={user:null,register:false,file:null,fileUsedFor:null,active:null,jobs:[],viewer:null,plan:null,undo:[],tool:'wall',start:null,dirty:false,poll:null,loadId:0};
 let toastTimer,thumbnailUrl;
 function saved(key,value){try{if(value===undefined)return localStorage.getItem(key);if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);}catch{}return null;}
 function draftKey(){return 'blueprint3d.draft.'+state.user.username+'.'+state.active.id;}
@@ -20,7 +20,7 @@ function showAuth(){
   furnishing.reset();state.loadId++;
   state.user=null;state.active=null;state.plan=null;state.jobs=[];clearTimeout(state.poll);
   $('studio').hidden=true;$('auth-screen').hidden=false;$('password').value='';$('confirm-password').value='';
-  state.file=null;$('plan-file').value='';$('upload-title').textContent='上传户型图';$('upload-meta').textContent='PNG / JPG / WebP · 最大 12 MB';
+  state.file=null;state.fileUsedFor=null;$('plan-file').value='';$('upload-title').textContent='上传户型图';$('upload-meta').textContent='PNG / JPG / WebP · 最大 12 MB';
   $('upload-thumbnail').hidden=true;$('generate').disabled=true;
   if(thumbnailUrl){URL.revokeObjectURL(thumbnailUrl);thumbnailUrl=null;}
 }
@@ -71,7 +71,7 @@ async function showSample(){
 function selectFile(file){
   if(!file)return;
   if(file.size>12*1024*1024){toast('图片不能超过 12 MB。',true);return;}
-  state.file=file;$('upload-title').textContent=file.name;$('upload-meta').textContent=(file.size/1024).toFixed(0)+' KB · 点击更换';
+  state.file=file;state.fileUsedFor=null;$('upload-title').textContent=file.name;$('upload-meta').textContent=(file.size/1024).toFixed(0)+' KB · 点击更换';
   if(thumbnailUrl)URL.revokeObjectURL(thumbnailUrl);thumbnailUrl=URL.createObjectURL(file);
   $('upload-thumbnail').src=thumbnailUrl;$('upload-thumbnail').hidden=false;$('generate').disabled=false;$('model-error').textContent='';
 }
@@ -84,12 +84,25 @@ $('load-sample').addEventListener('click',async()=>{
   try{const r=await fetch('/sample/input.png');selectFile(new File([await r.blob()],'示例户型.png',{type:'image/png'}));toast('示例已选中，点击“生成 3D 模型”开始。');}catch(e){toast('示例加载失败，请稍后重试。',true);}
 });
 $('model-form').addEventListener('submit',async event=>{
-  event.preventDefault();if(!state.file)return;
-  if(parameters().door_height>=parameters().wall_height){$('model-error').textContent='门高需要低于墙高。';return;}
+  event.preventDefault();
+  const reviseReady=state.active&&state.active.status==='done'&&state.plan;
+  const useFresh=state.file&&(state.fileUsedFor!==state.active?.id||!reviseReady);
+  if(!useFresh&&!reviseReady)return;
+  const params=parameters();
+  if(params.door_height>=params.wall_height){$('model-error').textContent='门高需要低于墙高。';return;}
   $('generate').disabled=true;$('model-error').textContent='';
-  const form=new FormData();form.append('file',state.file);form.append('parameters',JSON.stringify(parameters()));
-  try{const job=await api('/api/jobs',{method:'POST',body:form});await selectJob(job);await refreshJobs();}
-  catch(e){$('model-error').textContent=e.message;}finally{$('generate').disabled=!state.file;}
+  try{
+    let job;
+    if(useFresh){
+      const form=new FormData();form.append('file',state.file);form.append('parameters',JSON.stringify(params));
+      job=await api('/api/jobs',{method:'POST',body:form});state.fileUsedFor=job.id;
+    }else{
+      job=await api('/api/jobs/'+state.active.id+'/revise',{method:'POST',body:JSON.stringify({params,walls:state.plan.walls,doors:state.plan.doors})});
+    }
+    await selectJob(job);await refreshJobs();
+  }
+  catch(e){$('model-error').textContent=e.message;}
+  finally{$('generate').disabled=!(state.file||state.plan);}
 });
 async function refreshJobs(){
   if(!state.user)return;
@@ -118,6 +131,7 @@ async function selectJob(job){
   furnishing.reset();
   const loadId=++state.loadId;state.active=job;state.plan=null;state.undo=[];state.start=null;state.dirty=false;
   saved('blueprint3d.active.'+state.user.username,job.id);setParameters(job.params);
+  $('generate').disabled=!state.file;
   $('drawing-title').textContent=job.name;$('source-image').src='/api/jobs/'+job.id+'/files/input.png';
   const pending=['queued','running'].includes(job.status);$('progress').hidden=!pending;$('progress-title').textContent=job.status==='queued'?'任务已排队':'正在生成 3D 模型';
   $('downloads').hidden=job.status!=='done';$('status-badge').textContent={queued:'等待处理',running:'生成中',done:'已生成',error:'生成未完成'}[job.status];
@@ -128,6 +142,7 @@ async function selectJob(job){
   if(job.status==='done'){
     const result=job.result;state.plan=result.plan?structuredClone(result.plan):null;
     if(state.plan){try{const draft=JSON.parse(saved(draftKey()));if(draft&&Array.isArray(draft.walls)&&Array.isArray(draft.doors)){Object.assign(state.plan,draft);state.dirty=true;}}catch{}}
+    $('generate').disabled=!state.file&&!state.plan;
     $('result-note').textContent=result.note;
     $('result-meta').textContent=`总宽 ${job.params.width_m} 米 · 墙高 ${job.params.wall_height} 米 · ${result.triangles.toLocaleString()} 个三角面`;
     $('download-glb').href='/api/jobs/'+job.id+'/files/model.glb';$('download-zip').href='/api/jobs/'+job.id+'/files/model.zip';
