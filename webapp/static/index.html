@@ -8,12 +8,13 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/furnishing.css">
   <link rel="stylesheet" href="/static/decoration.css">
+  <link rel="stylesheet" href="/static/plan-editor.css">
 </head>
 <body>
   <section id="auth-screen" class="auth-screen" aria-label="账户登录">
     <div class="blueprint-cover">
       <a class="brand" href="/" aria-label="Blueprint3D 首页"><span class="brand-mark" aria-hidden="true">B<span>3</span></span>Blueprint3D</a>
-      <div class="cover-heading"><h1>从平面图纸<br>到立体空间</h1><p>上传、校正、预览。让每一道墙线都有形状。</p></div>
+      <div class="cover-heading"><h1>从平面图纸<br>到立体空间</h1><p>上传识别，或现场绘制。让每一道墙线都有形状。</p></div>
       <svg class="cover-plan" viewBox="130 35 900 760" role="img" aria-label="带门洞与隔墙的示例户型蓝图">
         <g fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round">
           <path d="M166 530H265V139H730V69H985V547H734V606M734 658V730H166Z M558 139V372 M265 372H489 M552 372H564 M628 372H731 M731 139V374 M734 439H793 M793 439H858 M858 366H985 M858 435V547 M265 531H434 M289 531V730"/>
@@ -37,7 +38,7 @@
           <button class="primary" id="auth-submit" type="submit">登录工作台</button>
         </form>
         <button class="text-button" id="auth-toggle" type="button">还没有账户？创建账户</button>
-        <div class="auth-note"><strong>一张户型图，就能开始</strong><p>支持 PNG、JPG、WebP。提供墙线校正、三维预览和模型下载。</p></div>
+        <div class="auth-note"><strong>从图纸或空白画布开始</strong><p>上传户型图识别，也可直接画墙、标门洞，再布置家具和精装修。</p></div>
       </div>
     </div>
   </section>
@@ -52,20 +53,30 @@
       <aside class="sidebar">
         <section class="new-model">
           <div class="section-heading"><h2>新建模型</h2><span>图纸 → 空间</span></div>
+          <div class="creation-modes" role="group" aria-label="户型创建方式"><button id="mode-upload" type="button" aria-pressed="true">上传图片识别</button><button id="mode-manual" type="button" aria-pressed="false">现场绘制户型</button></div>
           <form id="model-form">
+            <div id="upload-fields">
             <label class="upload-zone" id="upload-zone" for="plan-file">
               <span class="upload-icon" aria-hidden="true">＋</span><strong id="upload-title">选择或拖入户型图</strong><span id="upload-meta">PNG / JPG / WebP，最大 12 MB</span>
               <input type="file" id="plan-file" accept="image/png,image/jpeg,image/webp">
             </label>
             <img id="upload-thumbnail" class="upload-thumbnail" alt="选中的户型图" hidden>
+            </div>
+            <div id="manual-fields" class="manual-fields" hidden>
+              <label>户型名称<input id="manual-name" maxlength="80" value="手绘户型" placeholder="例如：两居室练习"></label>
+              <p>在网格上画出房间和隔墙，再标注门洞。</p>
+              <button id="start-manual" type="button">开始绘制</button>
+              <span id="manual-status" role="status"></span>
+            </div>
             <div class="parameters">
-              <label class="wide">户型总宽<span class="input-unit"><input id="width-m" type="number" min="2" max="100" step="0.1" value="10.8" required><span>米</span></span></label>
+              <label class="wide"><span id="width-label">户型总宽</span><span class="input-unit"><input id="width-m" type="number" min="2" max="100" step="0.1" value="10.8" required><span>米</span></span></label>
+              <label id="depth-field" class="wide" hidden>画布纵深<span class="input-unit"><input id="depth-m" type="number" min="2" max="100" step="0.1" value="9"><span>米</span></span></label>
               <label>墙高<span class="input-unit"><input id="wall-height" type="number" min="1.8" max="8" step="0.1" value="2.8" required><span>米</span></span></label>
               <label>门高<span class="input-unit"><input id="door-height" type="number" min="1.5" max="5" step="0.1" value="2.1" required><span>米</span></span></label>
               <label class="wide">墙厚<span class="input-unit"><input id="wall-thickness" type="number" min="0.06" max="0.6" step="0.01" value="0.16" required><span>米</span></span></label>
-              <label class="wide">建模方式<select id="engine"><option value="linework">线稿建模 · 支持墙线校正</option></select></label>
+              <label id="engine-field" class="wide">建模方式<select id="engine"><option value="linework">线稿建模 · 支持墙线校正</option></select></label>
             </div>
-            <p class="field-note">没有标注尺寸时，先输入估算值。生成后对照原图核对墙线和门洞。</p>
+            <p id="source-hint" class="field-note">没有标注尺寸时，先输入估算值。生成后对照原图核对墙线和门洞。</p>
             <p id="model-error" class="form-error" role="alert"></p>
             <button id="generate" class="primary" type="submit" disabled>生成 3D 模型</button>
           </form>
@@ -149,9 +160,10 @@
           </div>
         </section>
         <section id="edit-view" class="view-panel edit-panel" role="tabpanel" aria-labelledby="tab-edit" hidden>
-          <div id="edit-empty" class="edit-empty">生成线稿模型后，可在这里补墙、标门洞。</div>
-          <div id="editor-tools" class="editor-tools" hidden><div class="tool-group" role="group" aria-label="校正工具"><button data-tool="wall" aria-pressed="true">画墙线</button><button data-tool="door" aria-pressed="false">标门洞</button><button data-tool="erase" aria-pressed="false">擦除</button><button id="undo-edit">撤销</button></div><button id="save-edit" class="primary" disabled>更新 3D 模型</button></div>
-          <div id="editor-stage" class="editor-stage" hidden><canvas id="plan-editor" aria-label="平面校正画布，点击起点和终点可画墙线或门洞"></canvas></div>
+          <div id="edit-empty" class="edit-empty">选择“现场绘制户型”开始画图，或生成线稿模型后在这里校正。</div>
+          <div id="editor-tools" class="editor-tools" hidden><div class="tool-group" role="group" aria-label="绘图工具"><button data-tool="rectangle" aria-pressed="false">矩形房间</button><button data-tool="wall" aria-pressed="true">画墙线</button><button data-tool="door" aria-pressed="false">标门洞</button><button data-tool="erase" aria-pressed="false">擦除</button><button data-tool="pan" aria-pressed="false">平移</button><button id="undo-edit" disabled>撤销</button><button id="redo-edit" disabled>重做</button><button id="clear-edit">清空</button></div><button id="save-edit" class="primary" disabled>更新 3D 模型</button></div>
+          <div id="editor-ruler" class="editor-ruler" hidden><div><label class="check-label"><input id="plan-snap" type="checkbox" checked>0.1 米吸附</label><label class="check-label"><input id="plan-ortho" type="checkbox" checked>横竖墙线</label></div><span id="plan-measure"></span><div><button id="plan-zoom-out" aria-label="缩小画布">−</button><button id="plan-fit">适应</button><button id="plan-zoom-in" aria-label="放大画布">＋</button></div></div>
+          <div id="editor-stage" class="editor-stage" hidden><canvas id="plan-editor" tabindex="0" aria-label="户型绘图画布，点击两个对角画房间，或点击起点和终点画墙线和门洞"></canvas></div>
           <div id="edit-hint" class="editor-hint" hidden><span><i class="line-key wall-key"></i>墙线 <i class="line-key door-key"></i>门洞</span><span id="edit-instruction">依次点击起点、终点。墙线自动吸附横竖方向。</span></div>
         </section>
         <section id="image-view" class="view-panel source-panel" role="tabpanel" aria-labelledby="tab-image" hidden><img id="source-image" src="/sample/input.png" alt="当前模型的原始户型图"></section>
@@ -161,6 +173,6 @@
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/static/app.js"></script>
+  <script type="module" src="/static/app.js?v=manual-drawing-1"></script>
 </body>
 </html>

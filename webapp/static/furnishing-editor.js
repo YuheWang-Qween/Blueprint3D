@@ -1,5 +1,6 @@
 import {emptyLayout,angle,extent,fitItem,contains,meshBounds,validateLayout,drawFurniture} from './furniture.js';
 import {setSurfaceStyle,surfaceStyle} from './surface-finishes.js';
+import {planToWorld} from './plan-geometry.js';
 
 const $=id=>document.getElementById(id);
 const clone=value=>structuredClone(value);
@@ -114,10 +115,7 @@ export class FurnishingEditor {
   prepareWalls(job){
     this.walls=[];this.doors=[];
     const plan=job.result?.plan;if(!plan)return;
-    const points=plan.walls.flat(),minX=Math.min(...points.map(p=>p[0])),maxX=Math.max(...points.map(p=>p[0])),maxY=Math.max(...points.map(p=>p[1]));
-    const scale=job.params.width_m/(maxX-minX);
-    const convert=line=>line.map(([x,y])=>[(x-minX)*scale,(y-maxY)*scale]);
-    this.walls=plan.walls.map(convert);this.doors=plan.doors.map(convert);
+    Object.assign(this,planToWorld(plan,job.params.width_m));
   }
   selection(){return this.document.items.find(item=>item.id===this.selected);}
   status(message,error=false){$('furnish-status').textContent=message;$('furnish-status').classList.toggle('save-error',error);$('furnish-reload').hidden=!this.blocked;this.onStatus?.(message,error);}

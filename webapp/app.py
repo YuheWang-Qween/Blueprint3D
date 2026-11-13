@@ -86,6 +86,11 @@ class Revision(BaseModel):
     doors: list = Field(default_factory=list,max_length=450)
 
 
+class ManualDrawing(Revision):
+    name: str = Field(default='手绘户型',min_length=1,max_length=80)
+    depth_m: float = Field(default=9,ge=2,le=100,allow_inf_nan=False)
+
+
 def neural_available():
     return os.getenv('BLUEPRINT_ENABLE_NEURAL')=='1' and all((ROOT/p).is_file() for p in [
         'SplitFloor/checkpoints/splitfloor_best_miou.pth','SemaFloor/checkpoints/best_semafloor_model.pth'])
@@ -140,6 +145,10 @@ def create_app(data_dir=None):
         response.headers['Referrer-Policy']='same-origin'
         if request.url.path.startswith('/api/'):
             response.headers['Cache-Control']='no-store'
+        elif request.url.path.startswith('/static/') and Path(request.url.path).suffix in {'.js','.css','.json'}:
+            # These files keep stable names across releases. Revalidate them so
+            # new entrypoints cannot run alongside older cached editor modules.
+            response.headers['Cache-Control']='no-cache'
         return response
 
     @app.exception_handler(RequestValidationError)
@@ -272,6 +281,19 @@ def create_app(data_dir=None):
         name=Path((file.filename or '户型图').replace('\\','/')).name[:100]
         return enqueue(user,name,image,params)
 
+    @app.post('/api/jobs/manual',status_code=202)
+    def manual(data:ManualDrawing,request:Request):
+        user=current(request)
+        from .manual import drawing_plan, drawing_image
+        from .geometry import validate_plan
+        params=data.params.model_copy(update={'engine':'linework'})
+        plan=drawing_plan(params.width_m,data.depth_m,data.walls,data.doors)
+        try:
+            validate_plan(plan)
+        except (ValueError,TypeError) as error:
+            raise HTTPException(422,str(error))
+        return enqueue(user,data.name.strip() or '手绘户型',drawing_image(plan),params,plan)
+
     @app.get('/api/jobs/{jid}')
     def detail(jid:str,request:Request):
         return own_job(request,jid)
@@ -328,6 +350,10 @@ def create_app(data_dir=None):
         except (ValueError,TypeError) as e:
             raise HTTPException(422,str(e))
         params=data.params.model_copy(update={'engine':'linework'})
+        if source_plan.get('source')=='manual':
+            from .manual import drawing_image
+            plan['note']='手绘模型已按当前墙线、门洞与尺寸重新生成。'
+            return enqueue(current(request),old['name'],drawing_image(plan),params,plan)
         with Image.open(store.directory/'jobs'/jid/'input.png') as image:
             return enqueue(current(request),old['name'],image.copy(),params,plan)
 

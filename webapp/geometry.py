@@ -12,7 +12,7 @@ import trimesh
 from PIL import Image, ImageDraw
 from shapely import make_valid
 from shapely.geometry import LineString, Polygon, box
-from shapely.ops import unary_union
+from shapely.ops import unary_union, polygonize
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -123,6 +123,14 @@ def validate_plan(plan):
                 raise ValueError('线段太短')
     if not plan.get('walls'):
         raise ValueError('至少保留一条墙线')
+    if plan.get('source') == 'manual':
+        lines = unary_union([LineString(line) for line in plan['walls']])
+        if not list(polygonize(lines)):
+            raise ValueError('请先闭合外墙或画出一个完整房间，再生成模型。门洞请标在完整墙线上。')
+        wall_band = lines.buffer(.001)
+        for door in plan.get('doors', []):
+            if not wall_band.covers(LineString(door)):
+                raise ValueError('门洞必须完整位于墙线上，请调整门洞或补齐墙线。')
 
 
 def write_model(meshes, out):
@@ -160,7 +168,9 @@ def reconstruct(input_path, out, params, plan=None):
     validate_plan(plan)
     all_points = np.asarray(plan['walls']).reshape(-1, 2)
     low, high = all_points.min(axis=0), all_points.max(axis=0)
-    scale = params['width_m'] / max(high[0]-low[0], 1)
+    # Hand-drawn coordinates use the whole drawing width as the ruler. A small
+    # room in a large canvas must not stretch to fill that canvas on export.
+    scale = params['width_m'] / (plan['width'] if plan.get('source') == 'manual' else max(high[0]-low[0], 1))
     def xy(points):
         return (np.asarray(points)-[low[0], high[1]]) * [scale, -scale]
     width = params['wall_thickness']
@@ -172,7 +182,10 @@ def reconstruct(input_path, out, params, plan=None):
     for line in plan.get('doors', []):
         cutter=LineString(xy(line)).buffer(width*1.6, cap_style='flat')
         walls -= solid(cutter, params['door_height']+.02, -.01)
-    if plan.get('footprint'):
+    if plan.get('source') == 'manual':
+        rooms = unary_union(list(polygonize(unary_union([LineString(xy(line)) for line in plan['walls']]))))
+        floor_plan = rooms.buffer(width/2, join_style='mitre').union(wall_plan)
+    elif plan.get('footprint'):
         floor_plan = Polygon(xy(plan['footprint'])).buffer(width/2, join_style='mitre')
     else:
         # Fill only bounded outlines; also retain small gaps without a convex-hull shortcut.

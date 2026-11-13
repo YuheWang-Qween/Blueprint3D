@@ -1,8 +1,10 @@
 import {ModelViewer} from './viewer.bundle.js';
-import {FurnishingEditor} from './furnishing-editor.js';
+import {FurnishingEditor} from './furnishing-editor.js?v=manual-drawing-1';
 import {DecorationPanel} from './decoration.js';
+import {PlanEditor} from './plan-editor.js';
+import {blankPlan,validateDraft,DRAWING_UNITS} from './plan-geometry.js';
 const $=id=>document.getElementById(id);
-const state={user:null,register:false,file:null,fileUsedFor:null,active:null,jobs:[],viewer:null,plan:null,undo:[],tool:'wall',start:null,dirty:false,poll:null,loadId:0};
+const state={user:null,register:false,file:null,fileUsedFor:null,active:null,jobs:[],viewer:null,plan:null,manual:false,mode:'upload',busy:false,dirty:false,poll:null,loadId:0};
 let toastTimer,thumbnailUrl;
 function saved(key,value){try{if(value===undefined)return localStorage.getItem(key);if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);}catch{}return null;}
 function draftKey(){return 'blueprint3d.draft.'+state.user.username+'.'+state.active.id;}
@@ -19,8 +21,10 @@ function setParameters(p){for(const [key,id] of Object.entries({width_m:'width-m
 function showAuth(){
   furnishing.reset();state.loadId++;
   state.user=null;state.active=null;state.plan=null;state.jobs=[];clearTimeout(state.poll);
+  state.manual=false;state.busy=false;setCreationMode('upload');planEditor.load(null);setDrawingState(false);
   $('studio').hidden=true;$('auth-screen').hidden=false;$('password').value='';$('confirm-password').value='';
   state.file=null;state.fileUsedFor=null;$('plan-file').value='';$('upload-title').textContent='上传户型图';$('upload-meta').textContent='PNG / JPG / WebP · 最大 12 MB';
+  $('manual-name').value='手绘户型';$('depth-m').value=9;
   $('upload-thumbnail').hidden=true;$('generate').disabled=true;
   if(thumbnailUrl){URL.revokeObjectURL(thumbnailUrl);thumbnailUrl=null;}
 }
@@ -56,14 +60,15 @@ async function enter(user){
   if(!info.neural_available && existing)existing.remove();
   await refreshJobs();
   const remembered=saved('blueprint3d.active.'+user.username);
+  if(remembered==='manual'){beginManual();return;}
   const job=state.jobs.find(j=>j.id===remembered);
   if(job)await selectJob(job);
 }
 function viewerError(message){$('viewer-error').hidden=false;$('viewer-error').textContent=message;}
 async function showSample(){
   furnishing.reset();
-  state.active=null;state.plan=null;$('drawing-title').textContent='示例户型';$('status-badge').textContent='可旋转查看';$('status-badge').classList.remove('error');
-  $('result-note').textContent='示例已按原图核对，尺寸为估算值。上传你自己的图纸开始建模。';
+  state.active=null;state.plan=null;state.manual=false;setDrawingState(false);planEditor.load(null);updateGenerate();$('drawing-title').textContent='示例户型';$('status-badge').textContent='可旋转查看';$('status-badge').classList.remove('error');
+  $('result-note').textContent='示例已按原图核对，尺寸为估算值。可以上传户型图识别，也可以现场绘制。';
   $('result-meta').textContent='墙高 2.8 米 · 6 处平开门 · 1 处推拉隔断';
   $('source-image').src='/sample/input.png';$('viewer').hidden=false;$('viewer-error').hidden=true;$('downloads').hidden=true;$('progress').hidden=true;
   $('cutaway').checked=false;setView('model');await state.viewer?.load('/sample/model.glb');
@@ -71,6 +76,7 @@ async function showSample(){
 function selectFile(file){
   if(!file)return;
   if(file.size>12*1024*1024){toast('图片不能超过 12 MB。',true);return;}
+  setCreationMode('upload');
   state.file=file;state.fileUsedFor=null;$('upload-title').textContent=file.name;$('upload-meta').textContent=(file.size/1024).toFixed(0)+' KB · 点击更换';
   if(thumbnailUrl)URL.revokeObjectURL(thumbnailUrl);thumbnailUrl=URL.createObjectURL(file);
   $('upload-thumbnail').src=thumbnailUrl;$('upload-thumbnail').hidden=false;$('generate').disabled=false;$('model-error').textContent='';
@@ -84,25 +90,7 @@ $('load-sample').addEventListener('click',async()=>{
   try{const r=await fetch('/sample/input.png');selectFile(new File([await r.blob()],'示例户型.png',{type:'image/png'}));toast('示例已选中，点击“生成 3D 模型”开始。');}catch(e){toast('示例加载失败，请稍后重试。',true);}
 });
 $('model-form').addEventListener('submit',async event=>{
-  event.preventDefault();
-  const reviseReady=state.active&&state.active.status==='done'&&state.plan;
-  const useFresh=state.file&&(state.fileUsedFor!==state.active?.id||!reviseReady);
-  if(!useFresh&&!reviseReady)return;
-  const params=parameters();
-  if(params.door_height>=params.wall_height){$('model-error').textContent='门高需要低于墙高。';return;}
-  $('generate').disabled=true;$('model-error').textContent='';
-  try{
-    let job;
-    if(useFresh){
-      const form=new FormData();form.append('file',state.file);form.append('parameters',JSON.stringify(params));
-      job=await api('/api/jobs',{method:'POST',body:form});state.fileUsedFor=job.id;
-    }else{
-      job=await api('/api/jobs/'+state.active.id+'/revise',{method:'POST',body:JSON.stringify({params,walls:state.plan.walls,doors:state.plan.doors})});
-    }
-    await selectJob(job);await refreshJobs();
-  }
-  catch(e){$('model-error').textContent=e.message;}
-  finally{$('generate').disabled=!(state.file||state.plan);}
+  event.preventDefault();await generateModel();
 });
 async function refreshJobs(){
   if(!state.user)return;
@@ -129,7 +117,7 @@ function renderHistory(){
 }
 async function selectJob(job){
   furnishing.reset();
-  const loadId=++state.loadId;state.active=job;state.plan=null;state.undo=[];state.start=null;state.dirty=false;
+  const loadId=++state.loadId;state.active=job;state.plan=null;state.manual=false;state.dirty=false;setDrawingState(false);planEditor.load(null);
   saved('blueprint3d.active.'+state.user.username,job.id);setParameters(job.params);
   $('generate').disabled=!state.file;
   $('drawing-title').textContent=job.name;$('source-image').src='/api/jobs/'+job.id+'/files/input.png';
@@ -141,10 +129,14 @@ async function selectJob(job){
   setView('model');renderHistory();
   if(job.status==='done'){
     const result=job.result;state.plan=result.plan?structuredClone(result.plan):null;
+    const manual=state.plan?.source==='manual';setCreationMode(manual?'manual':'upload');
+    $('tab-edit').textContent=manual?'绘制平面':'校正平面';$('tab-image').textContent=manual?'手绘图纸':'原始图纸';
+    if(manual){$('manual-name').value=job.name;$('manual-name').disabled=true;$('depth-m').value=Number((state.plan.height*job.params.width_m/state.plan.width).toFixed(2));$('depth-m').disabled=true;}
     if(state.plan){try{const draft=JSON.parse(saved(draftKey()));if(draft&&Array.isArray(draft.walls)&&Array.isArray(draft.doors)){Object.assign(state.plan,draft);state.dirty=true;}}catch{}}
     $('generate').disabled=!state.file&&!state.plan;
     $('result-note').textContent=result.note;
-    $('result-meta').textContent=`总宽 ${job.params.width_m} 米 · 墙高 ${job.params.wall_height} 米 · ${result.triangles.toLocaleString()} 个三角面`;
+    const size=manual?`画布 ${job.params.width_m} × ${$('depth-m').value} 米`:`总宽 ${job.params.width_m} 米`;
+    $('result-meta').textContent=`${size} · 墙高 ${job.params.wall_height} 米 · ${result.triangles.toLocaleString()} 个三角面`;
     $('download-glb').href='/api/jobs/'+job.id+'/files/model.glb';$('download-zip').href='/api/jobs/'+job.id+'/files/model.zip';
     $('cutaway').checked=false;
     const layoutReady=furnishing.load(job,state.user.username);
@@ -152,8 +144,10 @@ async function selectJob(job){
     catch(e){viewerError(e.message);}
     await layoutReady;
   }
+  updateGenerate();
 }
 function setView(view){
+  if(state.manual&&view!=='edit')return;
   const wasFurnishing=document.querySelector('.work-layout').classList.contains('furnish-focus');
   for(const name of ['model','furnish','edit','image']){$(name+'-view').hidden=name!==view;$('tab-'+name).setAttribute('aria-selected',String(name===view));}
   document.querySelector('.work-layout').classList.toggle('furnish-focus',view==='furnish');
@@ -162,7 +156,7 @@ function setView(view){
   if(view==='model')state.viewer?.resize();
   if(view==='edit')prepareEditor();
   if(view==='furnish')furnishing.fit();
-  if(innerWidth<=760&&(view==='furnish'||wasFurnishing))document.querySelector('.drawing-heading').scrollIntoView({block:'start'});
+  if(innerWidth<=760&&(view==='furnish'||wasFurnishing||(state.manual&&view==='edit')))document.querySelector('.drawing-heading').scrollIntoView({block:'start'});
 }
 const furnishing=new FurnishingEditor({api,viewer:()=>state.viewer,toast,showModel:()=>{
   setView('model');$('cutaway').checked=true;state.viewer?.cut(true);decoration.setMode(true);
@@ -179,58 +173,110 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 $('view-top').addEventListener('click',()=>state.viewer?.top());$('view-reset').addEventListener('click',()=>state.viewer?.reset());
 $('cutaway').addEventListener('change',e=>state.viewer?.cut(e.target.checked));
 
-const canvas=$('plan-editor'),ctx=canvas.getContext('2d');let editorImage=new Image(),mapping={scale:1,x:0,y:0},hover=null;
+const planEditor=new PlanEditor({widthM:()=>parameters().width_m,onChange:changed,toast});
+function manualKey(){return 'blueprint3d.manual.'+state.user.username;}
+function setDrawingState(active){
+  document.querySelector('.work-layout').classList.toggle('drawing-active',active);
+  for(const id of ['tab-model','tab-furnish','tab-image'])$(id).disabled=active;
+  $('tab-edit').textContent=active?'绘制平面':'校正平面';
+  $('tab-image').textContent='原始图纸';
+}
+function setCreationMode(mode){
+  state.mode=mode;const manual=mode==='manual';
+  $('mode-upload').setAttribute('aria-pressed',String(!manual));$('mode-manual').setAttribute('aria-pressed',String(manual));
+  $('upload-fields').hidden=manual;$('manual-fields').hidden=!manual;$('depth-field').hidden=!manual;$('engine-field').hidden=manual;$('load-sample').hidden=manual;
+  const existingManual=manual&&!state.manual&&state.active?.result?.plan?.source==='manual';
+  $('depth-m').disabled=!manual||existingManual;$('depth-m').required=manual;$('manual-name').required=manual;$('manual-name').disabled=!!existingManual;
+  $('width-label').textContent=manual?'画布宽度':'户型总宽';
+  $('source-hint').textContent=manual?'先画闭合外墙，再加隔墙、标门洞。按画布标尺生成真实比例。':'没有标注尺寸时，先输入估算值。生成后对照原图核对墙线和门洞。';
+  $('start-manual').textContent=state.manual?'回到绘图':state.user&&saved(manualKey())?'继续手绘草稿':'开始绘制';
+  $('manual-status').textContent=state.manual?'草稿已保存在此浏览器。':'';
+  updateGenerate();
+}
+$('mode-manual').addEventListener('click',()=>setCreationMode('manual'));
+$('mode-upload').addEventListener('click',async()=>{
+  if(state.manual){stashManual();saved('blueprint3d.active.'+state.user.username,null);await showSample();}
+  setCreationMode('upload');
+});
+$('start-manual').addEventListener('click',()=>beginManual());
+function stashManual(){
+  if(!state.manual||!state.plan||!state.user)return;
+  const data={version:1,name:$('manual-name').value.trim()||'手绘户型',params:{...parameters(),engine:'linework'},depth_m:Number($('depth-m').value),walls:state.plan.walls,doors:state.plan.doors};
+  try{localStorage.setItem(manualKey(),JSON.stringify(data));$('manual-status').textContent='草稿已保存在此浏览器。';}
+  catch{$('manual-status').textContent='浏览器未能保存草稿，请保持页面打开并及时生成模型。';}
+}
+function beginManual(){
+  if(state.manual){setView('edit');return;}
+  let draft;
+  try{draft=JSON.parse(saved(manualKey()));if(draft)validateDraft(draft);}catch{draft=null;toast('手绘草稿无法读取，已打开空白画布。',true);}
+  if(draft){setParameters(draft.params);$('depth-m').value=draft.depth_m;$('manual-name').value=draft.name;}
+  setCreationMode('manual');$('engine').value='linework';
+  if(!$('model-form').reportValidity())return;
+  furnishing.reset();state.loadId++;state.active=null;state.manual=true;state.plan=draft?validateDraft(draft):blankPlan(parameters().width_m,Number($('depth-m').value));state.dirty=!!state.plan.walls.length;
+  state.file=null;state.fileUsedFor=null;$('plan-file').value='';$('upload-thumbnail').hidden=true;$('upload-title').textContent='选择或拖入户型图';
+  saved('blueprint3d.active.'+state.user.username,'manual');setCreationMode('manual');setDrawingState(true);
+  $('drawing-title').textContent=$('manual-name').value.trim()||'手绘户型';$('status-badge').textContent='绘制中';$('status-badge').classList.remove('error');
+  $('downloads').hidden=true;$('progress').hidden=true;$('model-error').textContent='';$('result-meta').textContent='';
+  $('result-note').textContent='手绘草稿保存在此浏览器；生成模型后保存到当前账户。';
+  setView('edit');planEditor.setTool('rectangle');stashManual();updateGenerate();renderHistory();
+}
+function updateGenerate(){
+  const ready=state.active?.status==='done'&&state.plan;
+  const pending=['queued','running'].includes(state.active?.status);
+  const fresh=state.file&&(!pending||state.fileUsedFor!==state.active?.id);
+  const allowed=state.manual?state.plan?.walls.length>=3:state.mode==='manual'?ready&&state.plan.source==='manual':fresh||(ready&&state.plan.source!=='manual');
+  $('generate').disabled=state.busy||!allowed;
+  $('save-edit').disabled=state.busy||!(state.manual?state.plan?.walls.length>=3:ready&&state.dirty);
+  $('save-edit').textContent=state.manual?'生成 3D 模型':'更新 3D 模型';
+}
 function prepareEditor(){
-  const enabled=!!state.plan;$('edit-empty').hidden=enabled;for(const id of ['editor-tools','editor-stage','edit-hint'])$(id).hidden=!enabled;
-  $('save-edit').disabled=!state.dirty;
-  if(enabled){editorImage=new Image();editorImage.onload=drawEditor;editorImage.src='/api/jobs/'+state.active.id+'/files/input.png';drawEditor();}
+  const enabled=!!state.plan;$('edit-empty').hidden=enabled;
+  for(const id of ['editor-tools','editor-stage','editor-ruler','edit-hint'])$(id).hidden=!enabled;
+  planEditor.load(state.plan,state.plan?.source==='manual'||!state.active?null:'/api/jobs/'+state.active.id+'/files/input.png');updateGenerate();
 }
-function drawEditor(){
-  if(!state.plan||$('edit-view').hidden)return;
-  const stage=$('editor-stage'),w=stage.clientWidth,h=stage.clientHeight;
-  if(!w||!h)return;
-  const dpr=Math.min(devicePixelRatio,2);canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-  const scale=Math.min((w-30)/state.plan.width,(h-24)/state.plan.height);mapping={scale,x:(w-state.plan.width*scale)/2,y:(h-state.plan.height*scale)/2};
-  ctx.save();ctx.translate(mapping.x,mapping.y);ctx.scale(scale,scale);ctx.globalAlpha=.65;
-  if(editorImage.complete&&editorImage.naturalWidth)ctx.drawImage(editorImage,0,0,state.plan.width,state.plan.height);
-  ctx.globalAlpha=1;
-  const line=(points,color,width,dash=[])=>{ctx.strokeStyle=color;ctx.lineWidth=width/scale;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(...points[0]);ctx.lineTo(...points[1]);ctx.stroke();};
-  for(const l of state.plan.walls)line(l,'#247ca6',2.5);
-  for(const l of state.plan.doors)line(l,'#d09423',6);
-  if(state.start){ctx.beginPath();ctx.fillStyle='#bd7c1f';ctx.arc(...state.start.point,5/scale,0,Math.PI*2);ctx.fill();if(hover)line([state.start.point,snapEnd(hover)],'#bd7c1f',2,[5/scale,5/scale]);}
-  ctx.restore();
+function changed(){
+  state.dirty=true;
+  if(state.manual){$('width-m').value=state.plan.width/DRAWING_UNITS;$('depth-m').value=state.plan.height/DRAWING_UNITS;stashManual();}
+  else if(state.active&&state.user)saved(draftKey(),JSON.stringify({walls:state.plan.walls,doors:state.plan.doors}));
+  updateGenerate();
 }
-new ResizeObserver(drawEditor).observe($('editor-stage'));
-function project(point,line){const a=line[0],b=line[1],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((point[0]-a[0])*dx+(point[1]-a[1])*dy)/(dx*dx+dy*dy)));return [a[0]+t*dx,a[1]+t*dy];}
-function nearest(point,lines){let result=null;lines.forEach((line,index)=>{const p=project(point,line),distance=Math.hypot(p[0]-point[0],p[1]-point[1]);if(!result||distance<result.distance)result={point:p,distance,index,line};});return result;}
-function imagePoint(event){const rect=canvas.getBoundingClientRect();return [Math.max(0,Math.min(state.plan.width,(event.clientX-rect.left-mapping.x)/mapping.scale)),Math.max(0,Math.min(state.plan.height,(event.clientY-rect.top-mapping.y)/mapping.scale))];}
-function snapEnd(point){
-  if(state.tool==='door'&&state.start.line)return project(point,state.start.line);
-  const a=state.start.point;return Math.abs(point[0]-a[0])>Math.abs(point[1]-a[1])?[point[0],a[1]]:[a[0],point[1]];
-}
-function changed(){state.dirty=true;saved(draftKey(),JSON.stringify({walls:state.plan.walls,doors:state.plan.doors}));$('save-edit').disabled=false;drawEditor();}
-function remember(){state.undo.push(structuredClone({walls:state.plan.walls,doors:state.plan.doors}));if(state.undo.length>50)state.undo.shift();}
-canvas.addEventListener('pointermove',event=>{if(!state.plan)return;hover=imagePoint(event);if(state.start)drawEditor();});
-canvas.addEventListener('pointerdown',event=>{
-  if(!state.plan)return;event.preventDefault();const point=imagePoint(event);
-  if(state.tool==='erase'){
-    const walls=nearest(point,state.plan.walls),doors=nearest(point,state.plan.doors);const target=doors&&(!walls||doors.distance<=walls.distance+3/mapping.scale)?{...doors,kind:'doors'}:walls?{...walls,kind:'walls'}:null;
-    if(target&&target.distance*mapping.scale<14){remember();state.plan[target.kind].splice(target.index,1);changed();}return;
-  }
-  if(!state.start){
-    if(state.tool==='door'){const near=nearest(point,state.plan.walls);if(!near||near.distance*mapping.scale>20){toast('请在墙线上选择门洞起点。');return;}state.start={point:near.point,line:near.line};}
-    else{let chosen=point;for(const line of state.plan.walls)for(const p of line)if(Math.hypot(p[0]-point[0],p[1]-point[1])*mapping.scale<9)chosen=p;state.start={point:[...chosen]};}
-    drawEditor();return;
-  }
-  const end=snapEnd(point);if(Math.hypot(end[0]-state.start.point[0],end[1]-state.start.point[1])<3){state.start=null;drawEditor();return;}
-  remember();state.plan[state.tool==='door'?'doors':'walls'].push([state.start.point,end]);state.start=null;changed();
+$('manual-name').addEventListener('input',()=>{if(state.manual){$('drawing-title').textContent=$('manual-name').value.trim()||'手绘户型';stashManual();}});
+for(const id of ['width-m','depth-m','wall-height','door-height','wall-thickness'])$(id).addEventListener('change',()=>{
+  if(state.manual){
+    const width=Number($('width-m').value),depth=Number($('depth-m').value);
+    if(width<2||width>100||depth<2||depth>100||!Number.isFinite(width+depth))return;
+    if([...state.plan.walls,...state.plan.doors].some(line=>line.some(p=>p[0]>width*DRAWING_UNITS||p[1]>depth*DRAWING_UNITS))){
+      $('width-m').value=state.plan.width/DRAWING_UNITS;$('depth-m').value=state.plan.height/DRAWING_UNITS;toast('新画布尺寸会截断已画墙线，请先移动或擦除超出的墙线。',true);return;
+    }
+    if(state.plan.width!==width*DRAWING_UNITS||state.plan.height!==depth*DRAWING_UNITS)planEditor.change(()=>{state.plan.width=width*DRAWING_UNITS;state.plan.height=depth*DRAWING_UNITS;});
+    else stashManual();
+    planEditor.fit();
+  }else{if(state.plan?.source==='manual')$('depth-m').value=Number((state.plan.height*parameters().width_m/state.plan.width).toFixed(2));planEditor.draw();}
 });
-document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{state.tool=b.dataset.tool;state.start=null;document.querySelectorAll('[data-tool]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('edit-instruction').textContent=state.tool==='erase'?'点击墙线或门洞将其擦除。':state.tool==='door'?'在同一面墙上依次选择门洞的起点、终点。':'依次点击起点、终点。墙线自动吸附横竖方向。';drawEditor();}));
-$('undo-edit').addEventListener('click',()=>{const prev=state.undo.pop();if(prev){Object.assign(state.plan,prev);state.start=null;changed();}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){state.start=null;drawEditor();}});
-$('save-edit').addEventListener('click',async()=>{
-  if(!state.plan||!state.active)return;$('save-edit').disabled=true;
-  try{const job=await api('/api/jobs/'+state.active.id+'/revise',{method:'POST',body:JSON.stringify({params:parameters(),walls:state.plan.walls,doors:state.plan.doors})});saved(draftKey(),null);await selectJob(job);await refreshJobs();}
-  catch(e){toast(e.message,true);$('save-edit').disabled=false;}
-});
+async function generateModel(reviseOnly=false){
+  if(state.busy||!$('model-form').reportValidity())return;
+  const reviseReady=state.active?.status==='done'&&state.plan;
+  const useFresh=!reviseOnly&&state.mode==='upload'&&state.file&&(state.fileUsedFor!==state.active?.id||!reviseReady);
+  if(!state.manual&&!useFresh&&!reviseReady)return;
+  const params=parameters();if(params.door_height>=params.wall_height){$('model-error').textContent='门高需要低于墙高。';toast('门高需要低于墙高。',true);return;}
+  if(state.manual&&state.plan.walls.length<3){toast('请先闭合外墙或画出一个完整房间。',true);return;}
+  const oldDraft=state.active&&state.user?draftKey():null,previous=state.active?.id;
+  state.busy=true;updateGenerate();$('model-error').textContent='';
+  try{
+    let job;
+    if(state.manual){
+      stashManual();job=await api('/api/jobs/manual',{method:'POST',body:JSON.stringify({name:$('manual-name').value.trim()||'手绘户型',depth_m:Number($('depth-m').value),params:{...params,engine:'linework'},walls:state.plan.walls,doors:state.plan.doors})});
+    }else if(useFresh){
+      const form=new FormData();form.append('file',state.file);form.append('parameters',JSON.stringify(params));
+      job=await api('/api/jobs',{method:'POST',body:form});state.fileUsedFor=job.id;
+    }else{
+      job=await api('/api/jobs/'+previous+'/revise',{method:'POST',body:JSON.stringify({params,walls:state.plan.walls,doors:state.plan.doors})});
+      if(state.fileUsedFor===previous)state.fileUsedFor=job.id;
+      if(oldDraft)saved(oldDraft,null);
+    }
+    await selectJob(job);await refreshJobs();
+  }catch(e){$('model-error').textContent=e.message;toast(e.message,true);}
+  finally{state.busy=false;updateGenerate();}
+}
+$('save-edit').addEventListener('click',()=>generateModel(true));
 try{const me=await api('/api/me');if(me.user)await enter(me.user);else showAuth();}catch(e){$('auth-error').textContent=e.message;}

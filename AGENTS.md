@@ -33,6 +33,7 @@
 - `bash scripts/setup_web.sh` 安装，`bash scripts/start_web.sh` 启动；必须实际在浏览器检查登录、上传、三维显示和下载。
 - Web 测试：安装 httpx 后 `.venv/bin/python -m unittest discover -s tests -p 'test_web.py' -v`；完整测试另需原几何/推理依赖。
 - 参数表单：模型生成后修改左侧参数再点“生成 3D 模型”，前端走 `/api/jobs/{id}/revise` 复用已存原图与当前墙线（含校正草稿）重新生成，保留校正结果；仅当用户选了新图片（`fileUsedFor` 不匹配当前任务）才走全新上传识别。刷新或从历史选回已生成模型时按钮同样可用，修复了“参数只能回显不能修改”的问题。
+- 新建户型有上传识别 / 现场绘制两个入口。`POST /api/jobs/manual` 接受墙线与门洞，强制线稿几何生成，不调用图片识别。`plan.source === 'manual'` 使用画布宽度标定（初始 32 单位/米），不是墙线包围盒；`plan-geometry.js` 的标尺、布置门洞坐标和 Python 几何必须保持一致。服务端校验闭合区域与门洞附着；修订保留 source 并重画手绘图纸。账户专属手绘草稿仅保存在浏览器，生成后的模型走现有账户存储。
 - 布置与室内视角前端测试：`node --test webapp/*.test.js`；实际检查平面拖放、所有家具的款式与材质、墙地面局部/全屋修改、室内移动、刷新恢复、JSON 导入导出和带材质 GLB。
 - 账户、任务与模型写入 `BLUEPRINT_DATA_DIR`（默认 var/web），禁止提交运行数据或权重。生产需要持久磁盘，不能默认容器目录会跨部署保留。
 - 不增加 Uvicorn worker 或多副本；当前任务队列是单服务进程。增强识别仅在依赖、权重与使用授权齐全时启用。

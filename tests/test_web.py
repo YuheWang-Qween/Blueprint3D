@@ -64,6 +64,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.upload().status_code,401)
         response=self.client.post('/api/register',json={'username':'blocked','password':'test-password-2026'})
         self.assertEqual(response.status_code,403)
+        self.assertEqual(self.client.get('/static/app.js').headers['cache-control'],'no-cache')
 
     def test_actual_upload_model_download_and_cross_account_isolation(self):
         self.register('owner')
@@ -112,6 +113,63 @@ class WebTests(unittest.TestCase):
         self.assertEqual(job['result']['method'],'linework')
         self.assertGreaterEqual(job['result']['wall_count'],5)
         self.assertTrue(job['result']['closed_meshes'])
+
+    def manual_request(self):
+        return {'name':'手绘两居室','depth_m':9,'params':{'width_m':12},
+                'walls':[[[32,32],[160,32]],[[160,32],[160,128]],[[160,128],[32,128]],
+                         [[32,128],[32,32]],[[96,32],[96,128]]],
+                'doors':[[[96,64],[96,96]]]}
+
+    def test_manual_drawing_bypasses_recognition_keeps_scale_and_supports_decoration(self):
+        import trimesh
+        self.register('manual_owner')
+        data=self.manual_request()
+        response=self.client.post('/api/jobs/manual',headers=HEADERS,json=data)
+        self.assertEqual(response.status_code,202,response.text)
+        job=self.completed(response.json()['id']);jid=job['id']
+        self.assertEqual(job['result']['method'],'manual')
+        self.assertEqual(job['result']['plan']['walls'],data['walls'])
+        self.assertEqual(job['result']['door_count'],1)
+        self.assertEqual(job['result']['plan']['width'],384)
+        glb=self.client.get(f'/api/jobs/{jid}/files/model.glb').content
+        scene=trimesh.load(io.BytesIO(glb),file_type='glb',force='scene')
+        # A 4 x 3m room in a 12 x 9m canvas stays 4 x 3m between wall centerlines.
+        self.assertAlmostEqual(scene.extents[0],4.16,places=4)
+        self.assertAlmostEqual(scene.extents[2],3.16,places=4)
+        surfaces=self.client.get(f'/api/jobs/{jid}/surfaces').json()['surfaces']
+        self.assertEqual(sum(s['kind']=='floor' for s in surfaces),2)
+        url=f'/api/jobs/{jid}/layout';layout=self.client.get(url).json()
+        layout['items']=[dict(id='manual_chair',type='chair',x=1,z=-1,width=.45,depth=.45,height=.85,rotation=0,color='#91aabd')]
+        self.assertEqual(self.client.put(url,headers=HEADERS,json=layout).status_code,200)
+        self.assertEqual(self.client.get(f'/api/jobs/{jid}/furnished.glb').content[:4],b'glTF')
+        revised=self.client.post(f'/api/jobs/{jid}/revise',headers=HEADERS,json={
+            'params':{**job['params'],'wall_height':3.1,'width_m':15},'walls':data['walls'],'doors':[]})
+        self.assertEqual(revised.status_code,202,revised.text)
+        new=self.completed(revised.json()['id'])
+        self.assertEqual(new['result']['plan']['source'],'manual')
+        self.assertEqual(new['result']['door_count'],0)
+        self.assertEqual(new['result']['wall_height'],3.1)
+        resized=trimesh.load(io.BytesIO(self.client.get(f"/api/jobs/{new['id']}/files/model.glb").content),file_type='glb',force='scene')
+        self.assertAlmostEqual(resized.extents[0],5.16,places=4)
+        self.assertEqual(self.client.get('/api/jobs/'+jid).json()['result']['door_count'],1)
+        self.client.post('/api/logout',headers=HEADERS);self.register('manual_other')
+        self.assertEqual(self.client.get('/api/jobs/'+jid).status_code,404)
+        self.assertEqual(self.client.post(f'/api/jobs/{jid}/revise',headers=HEADERS,json={
+            'params':job['params'],'walls':data['walls'],'doors':[]}).status_code,404)
+
+    def test_manual_drawing_rejects_open_outside_or_floating_door_input(self):
+        data=self.manual_request()
+        self.assertEqual(self.client.post('/api/jobs/manual',headers=HEADERS,json=data).status_code,401)
+        self.register()
+        self.assertEqual(self.client.post('/api/jobs/manual',json=data).status_code,403)
+        cases=[]
+        for key,value in [('walls',data['walls'][:2]),('walls',[[[-1,0],[4,0]]]),
+                          ('doors',[[[180,180],[210,180]]]),('depth_m',101),('walls',data['walls']*100)]:
+            case=copy.deepcopy(data);case[key]=value;cases.append(case)
+        for case in cases:
+            response=self.client.post('/api/jobs/manual',headers=HEADERS,json=case)
+            self.assertEqual(response.status_code,422,response.text)
+        self.assertEqual(self.client.get('/api/jobs').json()['jobs'],[])
 
     def test_faded_small_scan_retains_outer_and_internal_walls(self):
         self.register()

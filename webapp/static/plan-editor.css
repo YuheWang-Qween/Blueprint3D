@@ -1,0 +1,12 @@
+.creation-modes{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:16px}
+.creation-modes button{font-size:12px;padding:9px 3px;background:#fff}
+.creation-modes button[aria-pressed=true]{background:var(--blue);color:#fff;border-color:var(--blue)}
+.manual-fields>label{font-size:12px}.manual-fields p{font-size:12px;color:#627888;line-height:1.8;margin:12px 0}
+.manual-fields>button{width:100%;border-color:#a8bac6;color:var(--blue);background:#edf3f6;font-size:13px}
+#manual-status{font-size:11px;color:#4e7767;display:block;line-height:1.6;margin-top:8px}
+.editor-ruler{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f8fafb;border-bottom:1px solid var(--line);padding:8px 14px;font-size:11px;color:#617788;flex-wrap:wrap}
+.editor-ruler>div{display:flex;align-items:center;gap:12px}.editor-ruler>div:last-child{gap:4px}.editor-ruler button{padding:3px 9px;font-size:11px}
+.edit-panel .editor-stage{background:#e9eef2;min-height:240px}.edit-panel .editor-tools{align-items:flex-start}
+.edit-panel .tool-group{flex-wrap:wrap}.edit-panel .editor-tools .primary{white-space:nowrap}
+.drawing-active #tab-furnish,.drawing-active #tab-model,.drawing-active #tab-image{opacity:.45;pointer-events:none}
+@media(max-width:760px){.creation-modes{margin-bottom:14px}.manual-fields{margin-bottom:15px}.editor-ruler{padding:8px 10px}.editor-ruler>div{gap:9px}.edit-panel{height:540px;min-height:540px}.editor-hint{flex-direction:column;gap:5px}.editor-tools .primary{margin-left:auto}.drawing-active .drawing-heading h1{max-width:240px}}
